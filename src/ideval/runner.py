@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from rich.progress import track
@@ -8,6 +9,22 @@ from rich.progress import track
 from .adapters import chat, make_client
 from .metrics.base import SCORE_CONTRACT, parse_verdict
 from .schema import EvalResult, TestCase, load_suite
+
+_PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
+_SPACES = re.compile(r"\s+")
+
+
+def _normalize(text: str) -> str:
+    """Lowercase, strip punctuation, collapse whitespace (SQuAD-style)."""
+    return _SPACES.sub(" ", _PUNCT.sub(" ", text.lower())).strip()
+
+
+def _match_exact(output: str, expected: str) -> float:
+    """Normalized containment: the expected answer must appear in the output."""
+    norm_expected = _normalize(expected)
+    if not norm_expected:
+        return 0.0
+    return float(norm_expected in _normalize(output))
 
 
 def run_suite(suite: str, model: str, judge_model: str | None = None,
@@ -31,7 +48,7 @@ def run_suite(suite: str, model: str, judge_model: str | None = None,
             continue
 
         if case.scoreable:
-            result.score = float(output.strip().lower() == (case.expected or "").strip().lower())
+            result.score = _match_exact(output, case.expected or "")
         elif judge_client:
             verdict = _judge(judge_client, judge_model_id, case, output)
             result.score = verdict.score if verdict else None

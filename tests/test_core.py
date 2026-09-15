@@ -2,6 +2,7 @@ import pytest
 
 from ideval.calibrate import cohens_kappa, spearman
 from ideval.metrics.base import parse_verdict
+from ideval.runner import _match_exact, _normalize
 from ideval.schema import TestCase as CaseModel
 from ideval.schema import load_suite, suite_summaries
 
@@ -50,6 +51,26 @@ def test_spearman_perfect_monotonic():
 def test_spearman_with_ties():
     # tie-handled Pearson-on-ranks: sqrt(3)/2, not the tie-free shortcut 0.5
     assert abs(spearman([1, 1, 2], [10, 20, 30]) - 0.8660254037844387) < 1e-9
+
+
+def test_match_exact_embedded_in_sentence():
+    assert _match_exact("Ibu kota Provinsi Jawa Barat adalah Bandung.", "Bandung") == 1.0
+
+
+def test_match_exact_trailing_punctuation():
+    assert _match_exact("Rupiah.", "Rupiah") == 1.0
+
+
+def test_match_exact_case_insensitive():
+    assert _match_exact("JAKARTA adalah ibu kota", "jakarta") == 1.0
+
+
+def test_match_exact_genuine_miss_stays_zero():
+    assert _match_exact("Mount Everest", "Puncak Jaya") == 0.0
+
+
+def test_match_exact_empty_expected_is_zero():
+    assert _match_exact("anything", "") == 0.0
 
 
 def test_suite_summaries():
