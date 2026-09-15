@@ -19,8 +19,10 @@ def list_suites() -> None:
 
 
 @app.command()
-def run(suite: str, model: str, judge: str | None = None,
-        limit: int | None = None, out: Path | None = None) -> None:
+def run(suite: str, model: str = typer.Option(..., "--model", "-m"),
+        judge: str | None = typer.Option(None, "--judge"),
+        limit: int | None = typer.Option(None, "--limit"),
+        out: Path | None = typer.Option(None, "--out")) -> None:
     """Run a suite against a model (e.g. --model ollama/qwen2.5:1.5b)."""
     from .runner import run_suite  # deferred: keeps list-suites dependency-free
 

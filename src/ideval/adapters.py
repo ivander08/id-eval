@@ -33,7 +33,8 @@ class ModelRef:
 def make_client(model: str, api_key_env: str = "OPENAI_API_KEY") -> tuple[OpenAI, str]:
     ref = ModelRef(model)
     api_key = os.environ.get(api_key_env, "ollama")
-    client = OpenAI(base_url=ref.base_url(), api_key=api_key)
+    base_url = ref.base_url() or os.environ.get("OPENAI_BASE_URL")  # ponytail: generic proxy support
+    client = OpenAI(base_url=base_url, api_key=api_key)
     return client, ref.model_id
 
 
