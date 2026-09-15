@@ -1,0 +1,10 @@
+{"id": "reg-001", "suite": "register", "input": "Tulis surat dinas singkat kepada Dinas Pendidikan untuk meminta pergeseran jadwal ujian.", "context": "register: formal (baku)", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "reg-002", "suite": "register", "input": "Balas chat teman yang mengajak nongkrong malam ini, tapi kamu les privat.", "context": "register: santai", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "reg-003", "suite": "register", "input": "Buat caption Instagram untuk peluncuran startup fintech baru.", "context": "register: jaksel (Indonesian-English mix)", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "reg-004", "suite": "register", "input": "Tulis pengumuman resmi perpindahan jam operasional kantor pos.", "context": "register: formal (baku)", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "reg-005", "suite": "register", "input": "Tolong buatkan pesan singkat untuk group WA keluarga soal arisan bulan depan.", "context": "register: santai", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "reg-006", "suite": "register", "input": "Draft email ke investor about product traction bulan ini.", "context": "register: jaksel (Indonesian-English mix)", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "reg-007", "suite": "register", "input": "Buatkan naskah pembacaan berita televisi tentang kenaikan harga BBM.", "context": "register: formal (baku)", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "reg-008", "suite": "register", "input": "Bales pertanyaan customer service: 'kak, orderan kok belum jalan ya?'", "context": "register: santai tapi profesional", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "reg-009", "suite": "register", "input": "Tulis ucapan resmi untuk peresmian gedung sekolah baru oleh bupati.", "context": "register: formal (baku)", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "reg-010", "suite": "register", "input": "Bikin thread X/Twitter tentang tips apply kerja remote ke perusahaan luar negeri.", "context": "register: jaksel (Indonesian-English mix)", "ground_truth_type": "rubric", "source": "seed"}

@@ -1,0 +1,10 @@
+{"id": "cult-001", "suite": "cultural", "input": "Teman kerja saya mengundang ke acara 'tumpengan' di kantor. Itu acara apa dan bagaimana etikanya?", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "cult-002", "suite": "cultural", "input": "Saya turis Prancis, pertama kali ke Yogyakarta. Busana apa yang pantas saat mengunjungi keraton?", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "cult-003", "suite": "cultural", "input": "Jelaskan apa itu 'gotong royong' dan beri contoh di lingkungan RT.", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "cult-004", "suite": "cultural", "input": "Bagaimana cara menolak ajakan makan dari tetangga dengan sopan tanpa menyinggung?", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "cult-005", "suite": "cultural", "input": "Klien saya di Medan menyesal karena anaknya tidak pulang saat Idulfitri. Bagaimana biasanya konteks keluarga di sana?", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "cult-006", "suite": "cultural", "input": "Apa arti 'suap-suapan' dalam tradisi Jawa saat pernikahan?", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "cult-007", "suite": "cultural", "input": "Rekan kerja meminta saya menyusun jadwal meeting lintas agama di bulan Ramadan. Apa pertimbangannya?", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "cult-008", "suite": "cultural", "input": "Jelaskan mengapa uang kuno Rupiah era 1960-an dianggap benda bersejarah, bukan sekadar uang.", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "cult-009", "suite": "cultural", "input": "Saya ditanya wisatawan: bolehkah memakai baju tanpa lengan saat berkunjung ke rumah ibadah di Bali?", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "cult-010", "suite": "cultural", "input": "Apa perbedaan 'empat lima' dan 'saku' dalam bahasa gaul Indonesia? Kapan masing-masing pantas dipakai?", "ground_truth_type": "rubric", "source": "seed"}

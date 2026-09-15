@@ -1,0 +1,10 @@
+{"id": "cmx-001", "suite": "codemix", "input": "Gimme insight dong soal savings plan terbaik buat anak kuliah di UI, tapi yang masuk akal buat orang Indonesia ya.", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "cmx-002", "suite": "codemix", "input": "Deadline-nya besok, tolong buatkan executive summary-nya. Jangan lupa attach data-nya.", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "cmx-003", "suite": "codemix", "input": "Apa bedanya hosting sama domain? Jelasin simpel, gw bingung sama istilah-istilahnya.", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "cmx-004", "suite": "codemix", "input": "Boleh minta review PR gue? Fokus ke edge case-nya aja deh.", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "cmx-005", "suite": "codemix", "input": "Fix my resume dong, especially bagian experience. HR Indonesia biasanya expect apa?", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "cmx-006", "suite": "codemix", "input": "Kenapa ya aplikasi selalu crash pasOnboarding screen? Udah gue reinstall tetap sama.", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "cmx-007", "suite": "codemix", "input": "Bantu bikin meeting notes dari transcript ini, terus kirim follow-up email ke client-nya.", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "cmx-008", "suite": "codemix", "input": "Explain dong gimana cara top up e-wallet buat orang tua yang gaptek, step by step.", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "cmx-009", "suite": "codemix", "input": "The meeting-nya di-reschedule lagi. Gimana cara bilang ke tim kalau kita semua kesel tapi profesional?", "ground_truth_type": "rubric", "source": "seed"}
+{"id": "cmx-010", "suite": "codemix", "input": "Tolong translate penting ini buat kontrak kerja: 'probation period bisa diperpanjang berdasarkan performance review'.", "ground_truth_type": "rubric", "source": "seed"}

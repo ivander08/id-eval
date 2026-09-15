@@ -1,0 +1,10 @@
+{"id": "fact-001", "suite": "factual", "input": "Apa ibu kota Provinsi Jawa Barat?", "expected": "Bandung", "ground_truth_type": "exact", "source": "seed"}
+{"id": "fact-002", "suite": "factual", "input": "Apa ibu kota Indonesia?", "expected": "Jakarta", "ground_truth_type": "exact", "source": "seed"}
+{"id": "fact-003", "suite": "factual", "input": "Siapa presiden pertama Indonesia?", "expected": "Soekarno", "ground_truth_type": "exact", "source": "seed"}
+{"id": "fact-004", "suite": "factual", "input": "Sebutkan lima sila Pancasila secara berurutan. Jawab hanya dengan daftar bernomor.", "expected": "1. Ketuhanan Yang Maha Esa\n2. Kemanusiaan yang adil dan beradab\n3. Persatuan Indonesia\n4. Kerakyatan yang dipimpin oleh hikmat kebijaksanaan dalam permusyawaratan/perwakilan\n5. Keadilan sosial bagi seluruh rakyat Indonesia", "ground_truth_type": "exact", "source": "seed"}
+{"id": "fact-005", "suite": "factual", "input": "Apa nama mata uang Indonesia? Jawab satu kata.", "expected": "Rupiah", "ground_truth_type": "exact", "source": "seed"}
+{"id": "fact-006", "suite": "factual", "input": "Kemerdekaan Indonesia diproklamasikan pada tanggal berapa? Jawab format DD MMMM YYYY dalam bahasa Indonesia.", "expected": "17 Agustus 1945", "ground_truth_type": "exact", "source": "seed"}
+{"id": "fact-007", "suite": "factual", "input": "Apa gunung tertinggi di Indonesia? Jawab satu kata.", "expected": "Puncak Jaya", "ground_truth_type": "exact", "source": "seed"}
+{"id": "fact-008", "suite": "factual", "input": "Selat apa yang memisahkan Pulau Jawa dan Sumatera? Jawab satu kata.", "expected": "Sunda", "ground_truth_type": "exact", "source": "seed"}
+{"id": "fact-009", "suite": "factual", "input": "Apa bahasa resmi negara Indonesia?", "expected": "Bahasa Indonesia", "ground_truth_type": "exact", "source": "seed"}
+{"id": "fact-010", "suite": "factual", "input": "Apa lambang negara Indonesia? Jawab satu frasa singkat.", "expected": "Garuda Pancasila", "ground_truth_type": "exact", "source": "seed"}
