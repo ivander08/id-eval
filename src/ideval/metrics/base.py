@@ -20,7 +20,8 @@ class JudgeVerdict(BaseModel):
 
 
 SCORE_CONTRACT = (
-    'Reply with ONLY a JSON object: {"score": <float 0.0-1.0>, "reason": "<max 2 sentences>"}'
+    'Reply with ONLY a JSON object: {"score": <float 0.0-1.0>, "reason": "<max 2 sentences>"}\n'
+    "Do NOT reward length, hedging, or disclaimers — judge content only."
 )
 
 

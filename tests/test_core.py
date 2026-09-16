@@ -1,8 +1,8 @@
 import pytest
 
-from ideval.calibrate import cohens_kappa, spearman
+from ideval.calibrate import cohens_kappa, precision_recall, spearman
 from ideval.metrics.base import parse_verdict
-from ideval.runner import _match_exact, _normalize
+from ideval.runner import _match_choice, _match_exact, _normalize
 from ideval.schema import TestCase as CaseModel
 from ideval.schema import load_suite, suite_summaries
 
@@ -43,6 +43,25 @@ def test_kappa_mismatched_lengths():
     assert cohens_kappa([1.0], [1.0, 0.0]) is None
 
 
+def test_precision_recall_perfect():
+    a = [1.0, 0.0, 1.0, 0.0]
+    p, r = precision_recall(a, a)
+    assert p == 1.0 and r == 1.0
+
+
+def test_precision_recall_asymmetric():
+    # judge passes everything: recall=1, precision=2/3 (1 false positive)
+    judge = [1.0, 1.0, 1.0]
+    truth = [1.0, 0.0, 1.0]
+    p, r = precision_recall(judge, truth)
+    assert abs(p - 2 / 3) < 1e-9 and r == 1.0
+
+
+def test_precision_recall_no_positives():
+    p, r = precision_recall([0.0, 0.0], [0.0, 0.0])
+    assert p is None and r is None
+
+
 def test_spearman_perfect_monotonic():
     assert abs(spearman([1, 2, 3], [10, 20, 30]) - 1.0) < 1e-9
     assert abs(spearman([1, 2, 3], [30, 20, 10]) - (-1.0)) < 1e-9
@@ -71,6 +90,27 @@ def test_match_exact_genuine_miss_stays_zero():
 
 def test_match_exact_empty_expected_is_zero():
     assert _match_exact("anything", "") == 0.0
+
+
+def test_match_choice_last_letter_wins():
+    assert _match_choice("Jawabannya C.", "C") == 1.0
+    assert _match_choice("A. salah\nJawaban: B", "B") == 1.0
+
+
+def test_match_choice_rejects_wrong_letter():
+    assert _match_choice("Jawabannya D", "C") == 0.0
+
+
+def test_match_choice_is_case_sensitive():
+    # lowercase standalone 'a' in Indonesian text is a word, not an MC answer
+    assert _match_choice("Kalimat a ini tentang Benda", "A") == 0.0
+    assert _match_choice("jawabannya c.", "C") == 0.0
+    assert _match_choice("Jawabannya C.", "C") == 1.0
+
+
+def test_match_choice_letters_in_context_lines():
+    # options listing then explicit answer: last standalone letter is the answer
+    assert _match_choice("A. Galungan\nB. Kuningan\nJawab: D. Waisak", "D") == 1.0
 
 
 def test_suite_summaries():

@@ -15,20 +15,38 @@ class CalibrationReport(BaseModel):
     n: int
     kappa: float | None = None
     spearman: float | None = None
-    accuracy: float | None = None
+    precision: float | None = None  # judge says "pass" -> how often ground truth agrees
+    recall: float | None = None     # ground-truth passes -> how often judge catches them
 
 
-def cohens_kappa(a: list[float], b: list[float]) -> float | None:
-    """Kappa between two equally-sized score lists, binarized at >= 0.5."""
+def _binarize(scores: list[float], threshold: float) -> list[bool]:
+    return [s >= threshold for s in scores]
+
+
+def cohens_kappa(a: list[float], b: list[float], threshold: float = 0.5) -> float | None:
+    """Kappa between judge scores (a) and ground truth (b), binarized at threshold."""
     if len(a) != len(b) or not a:
         return None
-    bins = lambda s: [x >= 0.5 for x in s]  # noqa: E731
-    ab = bins(a)
-    bb = bins(b)
+    ab = _binarize(a, threshold)
+    bb = _binarize(b, threshold)
     po = sum(x == y for x, y in zip(ab, bb)) / len(ab)
     p_yes_a, p_yes_b = sum(ab) / len(ab), sum(bb) / len(bb)
     pe = p_yes_a * p_yes_b + (1 - p_yes_a) * (1 - p_yes_b)
     return (po - pe) / (1 - pe) if pe < 1 else None
+
+
+def precision_recall(a: list[float], b: list[float], threshold: float = 0.5) -> tuple[float | None, float | None]:
+    """Precision/recall of judge passes (a) vs ground-truth passes (b)."""
+    if len(a) != len(b) or not a:
+        return None, None
+    ab = _binarize(a, threshold)
+    bb = _binarize(b, threshold)
+    tp = sum(x and y for x, y in zip(ab, bb))
+    fp = sum(x and not y for x, y in zip(ab, bb))
+    fn = sum(not x and y for x, y in zip(ab, bb))
+    precision = tp / (tp + fp) if (tp + fp) else None
+    recall = tp / (tp + fn) if (tp + fn) else None
+    return precision, recall
 
 
 def spearman(a: list[float], b: list[float]) -> float | None:

@@ -40,19 +40,21 @@ def print_calibration(reports: list[CalibrationReport]) -> None:
     table.add_column("suite")
     table.add_column("n", justify="right")
     table.add_column("kappa", justify="right")
+    table.add_column("prec", justify="right")
+    table.add_column("recall", justify="right")
     table.add_column("spearman", justify="right")
     for r in reports:
-        table.add_row(r.judge, r.suite, str(r.n),
-                      "-" if r.kappa is None else f"{r.kappa:.3f}",
-                      "-" if r.spearman is None else f"{r.spearman:.3f}")
+        fmt = lambda v: "-" if v is None else format(v, ".3f")  # noqa: E731
+        table.add_row(r.judge, r.suite, str(r.n), fmt(r.kappa), fmt(r.precision), fmt(r.recall), fmt(r.spearman))
     console.print(table)
 
 
 def actions_summary(reports: list[CalibrationReport]) -> str:
     """Markdown for GitHub Actions job summaries."""
-    lines = ["| judge | suite | n | kappa | spearman |", "|---|---|---:|---:|---:|"]
+    lines = ["| judge | suite | n | kappa | precision | recall | spearman |",
+             "|---|---|---:|---:|---:|---:|---:|"]
     for r in reports:
-        lines.append(f"| {r.judge} | {r.suite} | {r.n} | "
-                     f"{'-' if r.kappa is None else format(r.kappa, '.3f')} | "
-                     f"{'-' if r.spearman is None else format(r.spearman, '.3f')} |")
+        fmt = lambda v: "-" if v is None else format(v, ".3f")  # noqa: E731
+        lines.append(f"| {r.judge} | {r.suite} | {r.n} | {fmt(r.kappa)} | "
+                     f"{fmt(r.precision)} | {fmt(r.recall)} | {fmt(r.spearman)} |")
     return "\n".join(lines)

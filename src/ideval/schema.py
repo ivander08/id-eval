@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-GroundTruthType = Literal["exact", "rubric"]
+GroundTruthType = Literal["exact", "choice", "rubric"]
 
 SUITES_DIR = Path(__file__).resolve().parents[2] / "suites"
 
@@ -18,10 +18,12 @@ class TestCase(BaseModel):
     expected: str | None = None
     ground_truth_type: GroundTruthType
     source: str = "hand-curated"
+    reference_note: str | None = None
+    judge_only: bool = False  # score the embedded response directly; skip the subject model
 
     @property
     def scoreable(self) -> bool:
-        return self.ground_truth_type == "exact" and self.expected is not None
+        return self.ground_truth_type in ("exact", "choice") and self.expected is not None
 
 
 class EvalResult(BaseModel):
