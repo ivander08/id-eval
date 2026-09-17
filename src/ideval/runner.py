@@ -15,10 +15,25 @@ _PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
 _SPACES = re.compile(r"\s+")
 _CHOICE = re.compile(r"(?:^|\W)([A-E])(?=[\W_]|$)")
 
+_SUPERSCRIPT = str.maketrans("¹²³⁴⁵⁶⁷⁸⁹⁰", "1234567890")
+_UNITS = [
+    (re.compile(r"\bsquare\s+kilomet(?:er|re)s?\b"), "km2"),
+    (re.compile(r"\bkilomet(?:er|re)s?\s+(?:persegi|kuadrat)\b"), "km2"),
+    (re.compile(r"\bkm\s*2\b"), "km2"),
+    (re.compile(r"\bhect?ares?\b"), "ha"),
+    (re.compile(r"\bhektare?\b"), "ha"),
+]
+
 
 def _normalize(text: str) -> str:
-    """Lowercase, strip punctuation, collapse whitespace (SQuAD-style)."""
-    return _SPACES.sub(" ", _PUNCT.sub(" ", text.lower())).strip()
+    """Lowercase, canonicalize superscripts and units, strip punctuation,
+    collapse whitespace (SQuAD-style plus unit canonicalization)."""
+    text = text.lower().translate(_SUPERSCRIPT)
+    text = _PUNCT.sub(" ", text)
+    text = _SPACES.sub(" ", text)
+    for pattern, replacement in _UNITS:
+        text = pattern.sub(replacement, text)
+    return _SPACES.sub(" ", text).strip()
 
 
 def _match_exact(output: str, expected: str) -> float:
@@ -65,12 +80,18 @@ def generate_outputs(cases: list[TestCase], model: str) -> list[EvalResult]:
     return results
 
 
-def score_with_judge(cases: list[TestCase], results: list[EvalResult], judge_model: str) -> int:
+def score_with_judge(cases: list[TestCase], results: list[EvalResult], judge_model: str,
+                     repeats: int = 1) -> int:
     """Fill judge_score (scoreable) or score (rubric) on `results`. Returns the
-    number of cases the judge failed to score.
+    number of cases the judge failed to score on every draw.
 
     Every case is reset before scoring, so a judge that fails leaves the field
-    unset instead of inheriting the previous judge's verdict."""
+    unset instead of inheriting the previous judge's verdict.
+
+    With repeats > 1 each case is judged `repeats` times, alternating prompt
+    framing (variant = draw index % 2). `judge_score` is the first successful
+    draw; `judge_repeats` holds them all. A case counts as an error only when
+    every draw failed, so `n + errors` still equals the case count."""
     client, model_id = make_client(judge_model)
     errors = 0
     for case, result in zip(cases, results):
@@ -80,19 +101,29 @@ def score_with_judge(cases: list[TestCase], results: list[EvalResult], judge_mod
             result.score = None
         result.judge_reason = None
         result.judge_raw = None
+        result.judge_repeats = []
         if result.error:
             errors += 1
             continue
-        verdict, raw = _judge(client, model_id, case, result.output)
-        if verdict is None:
-            result.judge_raw = raw
+        scores: list[float] = []
+        last_raw = ""
+        for draw in range(repeats):
+            verdict, raw = _judge(client, model_id, case, result.output, variant=draw % 2)
+            last_raw = raw
+            if verdict is None:
+                continue
+            scores.append(verdict.score)
+            if result.judge_reason is None:
+                result.judge_reason = verdict.reason
+        if not scores:
+            result.judge_raw = last_raw
             errors += 1
             continue
-        result.judge_reason = verdict.reason
+        result.judge_repeats = scores
         if case.scoreable:
-            result.judge_score = verdict.score
+            result.judge_score = scores[0]
         else:
-            result.score = verdict.score
+            result.score = scores[0]
     return errors
 
 
@@ -117,11 +148,16 @@ def run_suite(suite: str, model: str, judge_model: str | None = None,
     return results
 
 
-def _judge(client, model_id: str, case: TestCase, output: str) -> tuple[JudgeVerdict | None, str]:
+def _judge(client, model_id: str, case: TestCase, output: str,
+           variant: int = 0) -> tuple[JudgeVerdict | None, str]:
     """(verdict, raw). raw == "" means the API call raised; raw != "" with a None
-    verdict means the response did not parse."""
+    verdict means the response did not parse.
+
+    variant 0 puts the rubric after the response; variant 1 puts it before, which
+    is the pointwise analogue of position bias: same content, different framing."""
     rubric = rubric_for(case.suite).format(reference=case.expected or "-", contract=SCORE_CONTRACT)
-    prompt = f"Context: {case.context or '-'}\n\nPrompt: {case.input}\n\nResponse to evaluate:\n{output}\n\n{rubric}"
+    head = f"Context: {case.context or '-'}\n\nPrompt: {case.input}\n\nResponse to evaluate:\n{output}"
+    prompt = f"{head}\n\n{rubric}" if variant == 0 else f"{rubric}\n\n{head}"
     try:
         raw = chat(client, model_id, prompt)
     except Exception:  # noqa: BLE001

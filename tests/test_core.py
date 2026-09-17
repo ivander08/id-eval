@@ -1,6 +1,8 @@
 import pytest
 
-from ideval.calibrate import agreement_terms, build_report, cohens_kappa, pabak, pair_scores, precision_recall, spearman
+from ideval.calibrate import (agreement_terms, build_report, cohens_kappa, framing_agreement,
+                              pabak, pair_scores, precision_recall, spearman)
+from ideval.calibrate import test_retest as retest_agreement  # aliased: pytest collects bare `test_*` names
 from ideval.metrics.base import parse_verdict
 from ideval.reporting import update_readme_table
 from ideval.runner import _match_choice, _match_exact, _normalize
@@ -93,6 +95,21 @@ def test_match_exact_empty_expected_is_zero():
     assert _match_exact("anything", "") == 0.0
 
 
+def test_normalize_canonicalizes_superscript():
+    assert _match_exact("Luasnya 637.657 km²", "637.657 km2") == 1.0
+
+
+def test_normalize_canonicalizes_units():
+    assert _match_exact("sekitar 25 hektare", "25 ha") == 1.0
+    assert _match_exact("20.779 kilometer persegi", "20,779 square kilometres") == 1.0
+
+
+def test_normalize_still_rejects_genuine_misses():
+    assert _match_exact("Mount Everest", "Puncak Jaya") == 0.0
+    assert _match_exact("1892", "1889") == 0.0
+    assert _match_exact("Dollar", "Rupiah") == 0.0
+
+
 def test_match_choice_last_letter_wins():
     assert _match_choice("Jawabannya C.", "C") == 1.0
     assert _match_choice("A. salah\nJawaban: B", "B") == 1.0
@@ -178,6 +195,24 @@ def test_build_report_flags():
     assert "prevalence" in report.flags
 
 
+def test_test_retest_perfect_and_mixed():
+    assert retest_agreement([[1.0, 1.0, 1.0], [0.0, 0.0, 0.0]]) == 1.0
+    assert retest_agreement([[1.0, 1.0, 0.0]]) == 2 / 3
+    assert retest_agreement([[1.0]]) is None
+
+
+def test_framing_agreement_detects_swap():
+    assert framing_agreement([[1.0, 1.0, 1.0, 1.0]]) == 1.0
+    assert framing_agreement([[1.0, 0.0, 1.0, 0.0]]) == 0.0
+    assert framing_agreement([[1.0]]) is None
+
+
+def test_build_report_flags_unstable_and_framing():
+    report = build_report("j", "factual", [1.0] * 40, [1.0] * 40, subject="m",
+                          draws=[[1.0, 0.0]] * 40)
+    assert "unstable" in report.flags and "framing-sensitive" in report.flags
+
+
 def test_score_with_judge_does_not_inherit_previous_judge_score(monkeypatch):
     # a failing judge must leave judge_score unset, not keep the prior judge's value
     from ideval.metrics.base import JudgeVerdict
@@ -188,16 +223,26 @@ def test_score_with_judge_does_not_inherit_previous_judge_score(monkeypatch):
     monkeypatch.setattr("ideval.runner.chat", lambda *a, **k: "x")
     results = generate_outputs(cases, "ollama/qwen2.5:1.5b")
 
-    monkeypatch.setattr("ideval.runner._judge", lambda *a: (JudgeVerdict(score=1.0, reason="ok"), '{"score": 1.0}'))
+    monkeypatch.setattr("ideval.runner._judge", lambda *a, **k: (JudgeVerdict(score=1.0, reason="ok"), '{"score": 1.0}'))
     assert score_with_judge(cases, results, "judge-a") == 0
     assert [r.judge_score for r in results] == [1.0] * 4
     assert [r.judge_reason for r in results] == ["ok"] * 4
     assert [r.judge_raw for r in results] == [None] * 4
 
-    monkeypatch.setattr("ideval.runner._judge", lambda *a: (None, "not json"))
+    monkeypatch.setattr("ideval.runner._judge", lambda *a, **k: (None, "not json"))
     assert score_with_judge(cases, results, "judge-b") == 4
     assert [r.judge_score for r in results] == [None] * 4
     assert [r.judge_reason for r in results] == [None] * 4
+    assert [r.judge_raw for r in results] == ["not json"] * 4
+
+    monkeypatch.setattr("ideval.runner._judge", lambda *a, **k: (JudgeVerdict(score=1.0, reason="ok"), '{"score": 1.0}'))
+    assert score_with_judge(cases, results, "judge-c", repeats=3) == 0
+    assert [len(r.judge_repeats) for r in results] == [3] * 4
+    assert [r.judge_score for r in results] == [1.0] * 4
+
+    monkeypatch.setattr("ideval.runner._judge", lambda *a, **k: (None, "not json"))
+    assert score_with_judge(cases, results, "judge-d", repeats=3) == 4
+    assert [r.judge_repeats for r in results] == [[]] * 4
     assert [r.judge_raw for r in results] == ["not json"] * 4
 
 

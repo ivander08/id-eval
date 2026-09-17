@@ -39,6 +39,7 @@ def calibrate(
     judge: list[str] | None = typer.Option(None, "--judge", help="judge model(s); repeatable"),
     suite: list[str] | None = typer.Option(None, "--suite", help="suite(s); repeatable"),
     limit: int | None = typer.Option(None, "--limit"),
+    repeats: int = typer.Option(1, "--repeats", help="judge draws per case; >1 enables test-retest"),
     out: Path | None = typer.Option(None, "--out"),
     update_readme: bool = typer.Option(False, "--update-readme"),
 ) -> None:
@@ -47,10 +48,11 @@ def calibrate(
 
     judges = judge or ["kenari/deepseek-v4-1-flash"]
     suites = suite or ["factual", "factual_indommlu", "factual_tydiqa"]
-    reports, pairs = run_calibration(suites, subject, judges, limit=limit)
+    reports, pairs = run_calibration(suites, subject, judges, limit=limit, repeats=repeats)
     reporting.print_calibration(reports)
     if out:
-        payload = {"config": {"suites": suites, "subjects": subject, "judges": judges, "limit": limit},
+        payload = {"config": {"suites": suites, "subjects": subject, "judges": judges,
+                              "limit": limit, "repeats": repeats},
                    "reports": [r.model_dump() for r in reports],
                    "pairs": pairs}
         out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

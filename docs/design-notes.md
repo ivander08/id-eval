@@ -79,12 +79,13 @@ This is what makes the calibration study in §4 possible at all.
 
 ## 3. Judge failures are evidence, not noise
 
-`EvalResult` carries three separate judge fields:
+`EvalResult` carries four separate judge fields:
 
 ```python
-judge_score: float | None = None   # the parsed verdict
-judge_reason: str | None = None    # the judge's stated rationale
+judge_score: float | None = None   # the parsed verdict (first successful draw)
+judge_reason: str | None = None    # the judge's stated rationale for judge_score
 judge_raw: str | None = None       # raw judge text, set ONLY when parsing failed
+judge_repeats: list[float] = []    # every successful draw, in order
 ```
 
 `runner._judge` returns `tuple[JudgeVerdict | None, str]`, so the raw text survives
@@ -96,9 +97,16 @@ distinguishable and are documented in the docstring:
   format. A model problem.
 
 Collapsing those two into a single `errors` counter, as most harnesses do, throws
-away the only evidence that tells you which one you have. A ~8% judge failure rate
-is either a retry policy question or a prompt-contract question, and you cannot
-tell which without the raw text.
+away the only evidence that tells you which one you have. A judge failure rate of
+either kind is a retry-policy question or a prompt-contract question, and you
+cannot tell which without the raw text. In the shipped study the local judge fails
+to parse **7.4% of individual draws** while both API judges fail **none** —
+visible only because `--repeats 3` counts draws rather than cases. `errors` counts
+*cases*, not draws: a case is an error only when every draw failed, so the `err`
+column reads `0` for the local judge on every row despite a 7.4% per-draw failure
+rate. The `errors` column that the previous single-pass study published could not
+have shown this, and the two API judges' zero-error rows are the reason the column
+was trusted too far.
 
 The rationale is also captured per row, because a judge's stated reason is the
 audit trail for its score. `score_with_judge` resets `judge_reason` and
@@ -111,7 +119,9 @@ is a regression test for that inheritance specifically.
 ## 4. Cohen's kappa alone is not an agreement report
 
 `src/ideval/calibrate.py` computes `po` (observed agreement), `pe` (chance
-agreement), `kappa`, and `pabak` — and reports all four.
+agreement), `kappa`, and `pabak` — and reports all four. With `--repeats > 1` it
+adds `test_retest` and `framing_agreement` (§5), so a row carries both axes of
+Norman et al.'s protocol rather than only the validity one.
 
 The reason is a published and common failure mode. On a near-constant ground
 truth, `pe` approaches 1, and kappa collapses toward zero **no matter how well the
@@ -120,7 +130,7 @@ judge agrees**. From the shipped study:
 | judge | subject | suite | n | po | kappa | pabak | flags |
 |---|---|---|---:|---:|---:|---:|---|
 | `kenari/deepseek-v4-1-flash` | `kenari/qwen3-8-flash` | factual | 10 | 0.900 | **0.000** | 0.800 | low-n, prevalence |
-| `kenari/glm-5-3-flash` | `ollama/qwen2.5:1.5b` | factual | 10 | 1.000 | **1.000** | 1.000 | low-n |
+| `kenari/glm-5-3-flash` | `ollama/qwen2.5:1.5b` | factual | 10 | 0.900 | **0.800** | 0.800 | low-n |
 
 Both rows are real output. The first is a judge that agreed with ground truth 9
 times out of 10 and is reported as `kappa = 0.000`. A reader given only the kappa
@@ -149,26 +159,74 @@ coefficient from what we publish. See §8.
 
 ## 5. Fragile cells are annotated, not just computed
 
-`_flags` marks three conditions that make a row hard to read:
+`_flags` marks five conditions that make a row hard to read:
 
 | flag | trigger | why |
 |---|---|---|
 | `low-n` | `n < 30` | one flipped case moves kappa by ~0.1 or more |
 | `prevalence` | `pe >= 0.80` | kappa is prevalence-dominated in this cell |
 | `self-judge` | `subject == judge` | self-preference bias confounds the row |
+| `unstable` | `test_retest < 0.90` | the judge does not agree with itself run to run |
+| `framing-sensitive` | `framing_agreement < 0.80` | moving the rubric changes the verdict |
 
 The `low-n` threshold is a power argument, not a convention. For a proportion,
 `SE = N^(−1/2)·√(p(1−p))`; at `n = 10, p = 0.6` that is `±0.30` at 95%, and a
 single flipped case swings kappa by `0.20`. At `n = 300` the same flip moves it by
-`0.007`. A table that prints `n = 10` and `kappa = 1.000` with equal visual weight
+`0.007`. A table that prints `n = 10` and `kappa = 0.800` with equal visual weight
 to `n = 80` is not reporting uncertainty.
 
-The `self-judge` flag is the most important of the three. Panickssery et al. show
+The `self-judge` flag is the most important flag in the table. Panickssery et al. show
 that LLM evaluators recognise and favour their own generations, with the strength
 of the bias tracking self-recognition capability — so a row where subject and
 judge are the same model is confounded by construction. The shipped study has
-three such rows, all marked, all with `err > 0` (the local judge also fails more
-often on the hardest suite).
+three such rows, all marked, and all three are additionally `unstable` and
+`framing-sensitive` — the local judge is both the most biased and the least
+self-consistent row in the table.
+
+`unstable` and `framing-sensitive` are the two flags that only exist when
+`--repeats > 1`. They are the operational form of Norman et al.'s consistency–
+validity orthogonality: a row can agree with ground truth perfectly and still be
+flagged `unstable`, and that combination is the one worth reading first.
+
+### What the repeats measured
+
+Three draws per case, rubric position alternating, across 258 cases per judge:
+
+| judge | `test_retest` | `framing_agreement` | draws disagreeing | per-draw parse failure |
+|---|---:|---:|---:|---:|
+| `kenari/glm-5-3-flash` | 0.994 | 0.983 | 6.6% | 0.0% |
+| `kenari/deepseek-v4-1-flash` | 0.980 | 0.941 | 9.7% | 0.0% |
+| `ollama/qwen2.5:1.5b` | 0.787 | 0.473 | 71.6% | 7.4% |
+
+Three things follow, none of which the single-pass table could show.
+
+**Stability separates the judges, and it separates them the right way.** The local
+judge sits `0.19` below both API judges on `test_retest` — far outside the `0.02`
+that would indicate the draws were not independent. That is the falsification
+test for the statistic itself: if a stability number cannot pick out the judge
+that fails 7.4% of draws and flips its verdict on 72% of cases, it is measuring
+nothing. Note that neither API judge failed a single draw, so the `err` column
+alone would have hidden this entirely.
+
+**Agreement and stability are orthogonal here, exactly as Norman et al. claim.**
+`kenari/glm-5-3-flash` on `factual_indommlu / ollama` posts `kappa = 0.915` *and*
+`test_retest = 1.000` with zero flags. `kenari/deepseek-v4-1-flash` on
+`factual_tydiqa / kenari` posts a nearly identical `kappa = 0.155` — but that row
+is stable (`0.991`), while the local judge's `factual / kenari` row has a
+comparable `kappa = 0.138` and is *not* (`0.800`, `unstable`). Two rows a reader
+would previously have ranked identically are now distinguishable.
+
+**Framing sensitivity is the sharper instrument, and it catches the boundary
+cases.** The local judge's framing agreement (`0.473`) is worse than its
+test-retest (`0.787`) by a wide margin: it is not just noisy run to run, it
+*systematically* answers differently depending on whether the rubric precedes or
+follows the response. The API judges lose far less (`0.983`, `0.941`). That is the
+pointwise analogue of position bias showing up as a measurable, judge-specific
+effect rather than a suspicion — see §8.
+
+All three local-judge rows are simultaneously `self-judge`, `unstable`, and
+`framing-sensitive`. The §8 caveat that these rows are "confounded by
+construction" is now quantified rather than asserted.
 
 ---
 
@@ -178,7 +236,7 @@ often on the hardest suite).
 `expected`, `output` and the judge's `reason` inline:
 
 ```python
-{"suite", "subject", "judge", "case_id", "gt", "judge_score",
+{"suite", "subject", "judge", "case_id", "gt", "judge_score", "judge_scores",
  "expected", "output", "reason"}
 ```
 
@@ -189,10 +247,10 @@ disagreement in the table can be read directly out of the file** without
 regenerating outputs or joining against a side table.
 
 That property is what turned the largest disagreement in the study from an
-unexplained number into a finding. Filtering
+unexplained number into a finding. Before the normalizer fix, filtering
 `gt == 0.0 and judge_score >= 0.5` on `factual_tydiqa / kenari/qwen3-8-flash`
-yields 22 rows over 9 distinct cases, and the inline `expected` / `output` /
-`reason` triples classify every one of them:
+yielded 22 rows over 9 distinct cases, and the inline `expected` / `output` /
+`reason` triples classified every one of them:
 
 | cause | cases | example |
 |---|---:|---|
@@ -211,10 +269,45 @@ Note what is *not* a cause: digit separators. `_PUNCT` strips both `.` and `,`, 
 draft of this section claimed otherwise; re-running the classifier against the
 real `_match_exact` rather than a hand-written approximation is what caught it.
 
-**One consequence worth flagging:** one row scored `0.5`, which is exactly the
-binarization threshold. 20 of 756 pair rows sit on that boundary, where a
-half-point decides the pass/fail label. That is a real source of instability in
-the kappa column and is not currently flagged.
+### The three normalizer gaps are now fixed
+
+`_normalize` translates superscript digits and canonicalizes square-kilometre and
+hectare aliases (`km²`, `km2`, `square kilometres`, `kilometer persegi`,
+`hektare`, `ha`), so all three gap rows above match. The blast radius was measured
+before the change was accepted, on the artifact that found them: **5 of 80**
+`factual_tydiqa` rows flip, confined to three case ids, and every non-tydiqa
+kappa is unchanged to three decimals. On the re-run artifact the same comparison
+is 18 of 237 rows — the same three case ids, now crossed with three judges and
+two subjects — and still zero movement outside `factual_tydiqa`.
+
+The three regexes are the minimum set that closes the measured gaps; adding more
+units would widen the false-match surface for no corpus benefit.
+`test_normalize_still_rejects_genuine_misses` is the guard on that widening.
+
+After the fix the disagreement set on that cell collapses to **6 rows over 6
+distinct cases, every one of them a valid paraphrase** the judge credited
+correctly — `Genin` for *"ninja kelas rendah yang hanya menjalankan misi kelas D"*,
+`kecepatan berlari supersonik` for *"berjalan pada kecepatan supersonik"*, and so
+on. Those stay wrong on purpose: fixing them needs a semantic matcher or a
+different ground truth, not a wider regex, and Ho et al. already quantify the
+cost of exact match on extractive QA.
+
+**The fix moved agreement up and kappa down, which is not a contradiction.**
+On `factual_tydiqa / kenari/qwen3-8-flash / kenari/deepseek-v4-1-flash`, `po`
+rises `0.775 → 0.821` while kappa falls `0.217 → 0.155`. Correcting the matcher
+raised the ground-truth pass rate to `0.821`, which raises chance agreement to
+`0.788` and deflates kappa — the §4 prevalence effect, now firing harder because
+the ground truth is *more* skewed than before. PABAK, which carries no prevalence
+term, rises `0.550 → 0.641` and tracks the raw agreement. This is the clearest
+instance in the study of why kappa alone is not an agreement report.
+
+**One consequence worth flagging:** a half-point verdict sits exactly on the
+binarization threshold, where it decides the pass/fail label. In the re-run
+artifact 42 of 774 pair rows carry at least one draw at exactly `0.5`, and 16 rows
+publish `judge_score == 0.5`. That is a real source of instability in the kappa
+column. It is no longer unmeasured — `test_retest` counts a draw as a pass at
+`>= 0.5`, so a judge that lands on the boundary run to run shows up as
+instability — but the threshold itself remains a convention, not a finding.
 
 ---
 
@@ -237,6 +330,21 @@ output is how a harness starts inventing data.
 for every row, so a row can never quietly be computed over a subset. The `err`
 column is part of the table for the same reason.
 
+**Repeats are a study parameter, not a default.** `calibrate --repeats N` judges
+each case `N` times, alternating prompt framing, and records every draw on the
+pair row (`judge_scores`) beside the first successful one (`judge_score`). The
+table then carries `retest` and `frame`. The reason not to make it the default is
+cost, not principle: `--repeats 3` triples judge calls, and a single-pass run is
+still the right tool for a quick diagnostic — it renders both columns `-` rather
+than pretending to a stability number it did not measure.
+
+Two consequences worth stating. A case counts as an error only when *every* draw
+failed, so `n + errors` still equals the case count and a judge that fails once in
+three draws is not silently dropped from the row. And `test_retest` can be `1.0`
+on a case that fails under every draw, because only successful draws enter the
+statistic — stability of failure is still stability. Coverage is what `n` and
+`errors` report; stability is a separate axis.
+
 ---
 
 ## 8. What we know we get wrong
@@ -252,21 +360,30 @@ strengths is marketing.
    unambiguous that reliability is language-conditional and should not be assumed
    (Doğruöz et al.; Fu & Liu report mean Fleiss' κ ≈ 0.3 across 25 languages).
 
-2. **Position bias is unmeasured.** `_judge` presents a single response against a
-   rubric, so pairwise position bias does not apply directly — but the
-   pointwise analogue (does the score change when the reference and response
-   swap order, or when rubric framing changes?) is untested. Position bias is
-   among the best-documented LLM-judge failure modes (Shi et al.).
+2. **Pairwise position bias is unmeasured.** `_judge` presents a single response
+   against a rubric, so pairwise position bias does not apply directly. The
+   pointwise analogue is now measured: with `--repeats > 1` the rubric alternates
+   between after the response (variant 0) and before it (variant 1), and
+   `framing_agreement` reports how often the two framings reach the same
+   majority verdict. What is still untested is the pairwise form — two responses,
+   order swapped — which needs a different judge contract (Shi et al.).
 
-3. **Test-retest reliability is unmeasured.** Every cell is a single run. Norman
-   et al.'s central result is that consistency and validity are *orthogonal* — a
-   judge can be perfectly reproducible and maximally biased — so reporting
-   agreement without a replicate count leaves the most important axis blank.
+3. **Test-retest reliability is measured, but only where `--repeats > 1`.** The
+   study's published rows carry `test_retest`, the mean share of draws agreeing
+   with their item's majority label. Norman et al.'s central result is that
+   consistency and validity are *orthogonal* — a judge can be perfectly
+   reproducible and maximally biased — so the two axes are reported side by side
+   rather than collapsed. The remaining gap is that `--repeats` is a study
+   parameter, not a default: a single-pass run leaves both columns `-`.
 
-4. **The exact-match normalizer has known gaps.** §6 found three concrete ones
-   (unit aliases, unit language, superscript exponents). They are unfixed.
-   `_normalize` is SQuAD-style: lowercase, strip punctuation, collapse whitespace.
-   It does not canonicalize units, scripts, or Indonesian affixes.
+4. **The exact-match normalizer still cannot see paraphrase.** The three measured
+   gaps (unit aliases, unit language, superscript exponents) are fixed in
+   `_normalize`. What remains is the dominant cause: with those gaps closed, the
+   disagreement set on the worst cell is **6 rows over 6 distinct cases, every one
+   a valid paraphrase** that exact match rejects by construction. `_normalize` is
+   SQuAD-style plus unit canonicalization; it does not canonicalize scripts or
+   Indonesian affixes, and closing the paraphrase gap needs a semantic matcher,
+   not a wider regex.
 
 5. **`low-n` cells are published anyway.** Flagging a 10-case cell is not the same
    as fixing it. The correct fix is more cases, which is the M1 line item.

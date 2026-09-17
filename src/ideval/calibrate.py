@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 
 LOW_N = 30            # below this, kappa moves ~0.1 per flipped case
 HIGH_CHANCE = 0.80    # chance agreement this high makes kappa prevalence-dominated
+LOW_STABILITY = 0.90   # below this, the judge does not agree with itself run to run
+LOW_FRAMING = 0.80     # below this, moving the rubric changes the verdict
 
 
 class CalibrationReport(BaseModel):
@@ -21,6 +23,8 @@ class CalibrationReport(BaseModel):
     kappa: float | None = None
     agreement: float | None = None  # observed agreement po
     pabak: float | None = None      # 2*po - 1, prevalence-free
+    test_retest: float | None = None       # mean modal agreement across repeated draws
+    framing_agreement: float | None = None  # agreement between the two prompt framings
     spearman: float | None = None
     precision: float | None = None  # judge says "pass" -> how often ground truth agrees
     recall: float | None = None     # ground-truth passes -> how often judge catches them
@@ -55,6 +59,34 @@ def pabak(a: list[float], b: list[float], threshold: float = 0.5) -> float | Non
     stays readable where kappa collapses on a near-constant ground truth."""
     po, _ = agreement_terms(a, b, threshold)
     return None if po is None else 2 * po - 1
+
+
+def test_retest(draws: list[list[float]], threshold: float = 0.5) -> float | None:
+    """Mean modal agreement across repeated draws of the same item. 1.0 = every
+    draw agreed with the majority; None when no item has two or more draws."""
+    usable = [[b for b in _binarize(d, threshold)] for d in draws if len(d) >= 2]
+    if not usable:
+        return None
+    return sum(max(b.count(True), b.count(False)) / len(b) for b in usable) / len(usable)
+
+
+def framing_agreement(draws: list[list[float]], threshold: float = 0.5) -> float | None:
+    """Agreement between the two prompt framings. Draw i uses variant i % 2, so
+    even indices are framing A and odd indices framing B. Each item is reduced to
+    its per-framing majority label, and the two labels are compared. None when no
+    item has a draw under both framings."""
+    pairs = []
+    for d in draws:
+        a = _binarize(d[0::2], threshold)
+        b = _binarize(d[1::2], threshold)
+        if not a or not b:
+            continue
+        majority_a = sum(a) * 2 > len(a)
+        majority_b = sum(b) * 2 > len(b)
+        pairs.append(majority_a == majority_b)
+    if not pairs:
+        return None
+    return sum(pairs) / len(pairs)
 
 
 def precision_recall(a: list[float], b: list[float], threshold: float = 0.5) -> tuple[float | None, float | None]:
@@ -105,7 +137,8 @@ def pair_scores(judge_scores: list[float | None],
     return [j for j, _ in paired], [g for _, g in paired]
 
 
-def _flags(n: int, pe: float | None, subject: str, judge: str) -> list[str]:
+def _flags(n: int, pe: float | None, subject: str, judge: str,
+           stability: float | None = None, framing: float | None = None) -> list[str]:
     flags = []
     if n < LOW_N:
         flags.append("low-n")
@@ -113,33 +146,43 @@ def _flags(n: int, pe: float | None, subject: str, judge: str) -> list[str]:
         flags.append("prevalence")
     if subject and subject == judge:
         flags.append("self-judge")
+    if stability is not None and stability < LOW_STABILITY:
+        flags.append("unstable")
+    if framing is not None and framing < LOW_FRAMING:
+        flags.append("framing-sensitive")
     return flags
 
 
 def build_report(judge: str, suite: str, judge_scores: list[float | None],
                  gt_scores: list[float | None], errors: int = 0,
-                 subject: str = "") -> CalibrationReport:
-    """Pair, then compute agreement / kappa / PABAK / precision / recall / spearman."""
+                 subject: str = "", draws: list[list[float]] | None = None) -> CalibrationReport:
+    """Pair, then compute agreement / kappa / PABAK / precision / recall / spearman,
+    plus test-retest and framing agreement when repeats were collected."""
     j, g = pair_scores(judge_scores, gt_scores)
     precision, recall = precision_recall(j, g)
     po, pe = agreement_terms(j, g)
+    stability = test_retest(draws or [])
+    framing = framing_agreement(draws or [])
     return CalibrationReport(
         judge=judge, suite=suite, subject=subject, n=len(j),
         kappa=cohens_kappa(j, g),
         agreement=po,
         pabak=pabak(j, g),
+        test_retest=stability,
+        framing_agreement=framing,
         spearman=spearman(j, g),
         precision=precision, recall=recall,
         errors=errors,
-        flags=_flags(len(j), pe, subject, judge),
+        flags=_flags(len(j), pe, subject, judge, stability, framing),
     )
 
 
 def run_calibration(suites: list[str], subjects: list[str], judges: list[str],
-                    limit: int | None = None) -> tuple[list[CalibrationReport], list[dict]]:
+                    limit: int | None = None, repeats: int = 1) -> tuple[list[CalibrationReport], list[dict]]:
     """Subject outputs generated once per (suite, subject), then every judge scores
     the same outputs. Returns (reports, pair rows); pair rows carry `expected`,
-    `output` and the judge `reason` so any disagreement is auditable without a join."""
+    `output`, the judge `reason` and every repeated `judge_scores` draw so any
+    disagreement or instability is auditable without a join."""
     from . import runner, schema  # deferred: keeps list-suites free of the runner/rich chain
 
     reports: list[CalibrationReport] = []
@@ -152,16 +195,20 @@ def run_calibration(suites: list[str], subjects: list[str], judges: list[str],
             results = runner.generate_outputs(cases, subject)
             outputs = [r.output for r in results]
             for judge in judges:
-                errors = runner.score_with_judge(cases, results, judge)
+                errors = runner.score_with_judge(cases, results, judge, repeats=repeats)
                 judge_scores = [r.judge_score for r in results]
                 gt_scores = [r.score for r in results]
                 reasons = [r.judge_reason for r in results]
-                reports.append(build_report(judge, suite, judge_scores, gt_scores, errors, subject))
+                draws = [r.judge_repeats for r in results]
+                reports.append(build_report(judge, suite, judge_scores, gt_scores, errors,
+                                            subject, draws))
                 pairs.extend(
                     {"suite": suite, "subject": subject, "judge": judge,
                      "case_id": case.id, "gt": gt, "judge_score": js,
+                     "judge_scores": ds,
                      "expected": case.expected, "output": out, "reason": reason}
-                    for case, js, gt, reason, out in zip(cases, judge_scores, gt_scores, reasons, outputs)
+                    for case, js, gt, reason, out, ds in zip(
+                        cases, judge_scores, gt_scores, reasons, outputs, draws)
                     if js is not None and gt is not None
                 )
     return reports, pairs

@@ -35,6 +35,7 @@ class EvalResult(BaseModel):
     judge_score: float | None = None  # set only when a judge ran over this output
     judge_reason: str | None = None  # judge's stated rationale for judge_score
     judge_raw: str | None = None     # raw judge text, set ONLY when parsing failed
+    judge_repeats: list[float] = Field(default_factory=list)  # every successful draw, in order
     error: str | None = None
 
 
