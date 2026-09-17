@@ -1,7 +1,8 @@
 import os
 import time
 
-os.environ.setdefault("OPENAI_API_KEY", "kn-4e9a9cf2d05e3dd236201043169ff89cea07d32d3954db95")
+if not os.environ.get("OPENAI_API_KEY"):
+    raise SystemExit("set OPENAI_API_KEY before running this probe")
 
 from openai import OpenAI
 
