@@ -41,14 +41,17 @@ def print_calibration(reports: list[CalibrationReport]) -> None:
     table.add_column("suite")
     table.add_column("n", justify="right")
     table.add_column("kappa", justify="right")
+    table.add_column("pabak", justify="right")
     table.add_column("prec", justify="right")
     table.add_column("recall", justify="right")
     table.add_column("spearman", justify="right")
     table.add_column("err", justify="right")
+    table.add_column("flags")
     for r in reports:
         fmt = lambda v: "-" if v is None else format(v, ".3f")  # noqa: E731
-        table.add_row(r.judge, r.subject, r.suite, str(r.n), fmt(r.kappa), fmt(r.precision), fmt(r.recall),
-                      fmt(r.spearman), str(r.errors))
+        table.add_row(r.judge, r.subject, r.suite, str(r.n), fmt(r.kappa), fmt(r.pabak),
+                      fmt(r.precision), fmt(r.recall), fmt(r.spearman), str(r.errors),
+                      ", ".join(r.flags))
     console.print(table)
 
 
@@ -68,10 +71,11 @@ def update_readme_table(path: Path, markdown: str) -> None:
 
 def actions_summary(reports: list[CalibrationReport]) -> str:
     """Markdown for GitHub Actions job summaries."""
-    lines = ["| judge | subject | suite | n | kappa | precision | recall | spearman | err |",
-             "|---|---|---|---:|---:|---:|---:|---:|---:|"]
+    lines = ["| judge | subject | suite | n | kappa | pabak | precision | recall | spearman | err | flags |",
+             "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|"]
     for r in reports:
         fmt = lambda v: "-" if v is None else format(v, ".3f")  # noqa: E731
-        lines.append(f"| {r.judge} | {r.subject} | {r.suite} | {r.n} | {fmt(r.kappa)} | "
-                     f"{fmt(r.precision)} | {fmt(r.recall)} | {fmt(r.spearman)} | {r.errors} |")
+        lines.append(f"| {r.judge} | {r.subject} | {r.suite} | {r.n} | {fmt(r.kappa)} | {fmt(r.pabak)} | "
+                     f"{fmt(r.precision)} | {fmt(r.recall)} | {fmt(r.spearman)} | {r.errors} | "
+                     f"{', '.join(r.flags)} |")
     return "\n".join(lines)

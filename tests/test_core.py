@@ -1,6 +1,6 @@
 import pytest
 
-from ideval.calibrate import build_report, cohens_kappa, pair_scores, precision_recall, spearman
+from ideval.calibrate import agreement_terms, build_report, cohens_kappa, pabak, pair_scores, precision_recall, spearman
 from ideval.metrics.base import parse_verdict
 from ideval.reporting import update_readme_table
 from ideval.runner import _match_choice, _match_exact, _normalize
@@ -151,6 +151,33 @@ def test_build_report_known_kappa_and_missing_judge_score():
     assert abs(report.kappa - 0.5) < 1e-9
 
 
+def test_pabak_endpoints():
+    assert pabak([1.0, 0.0, 1.0, 0.0], [1.0, 0.0, 1.0, 0.0]) == 1.0
+    assert pabak([1.0, 0.0], [0.0, 1.0]) == -1.0
+    assert pabak([1.0], [1.0, 0.0]) is None
+
+
+def test_pabak_exposes_what_kappa_hides():
+    # the published degenerate cell: 10 ground-truth passes, 9 judge passes
+    gt, judge = [1.0] * 10, [1.0] * 9 + [0.0]
+    assert cohens_kappa(judge, gt) == 0.0
+    assert pabak(judge, gt) == 0.8
+
+
+def test_agreement_terms_reports_chance_agreement():
+    po, pe = agreement_terms([1.0] * 10, [1.0] * 9 + [0.0])
+    assert po == 0.9 and pe == 0.9
+
+
+def test_build_report_flags():
+    report = build_report("m", "factual", [1.0, 0.0, 1.0, 0.0], [1.0, 0.0, 1.0, 0.0], subject="m")
+    assert report.flags == ["low-n", "self-judge"]
+
+    report = build_report("j", "factual", [1.0] * 40, [1.0] * 40, subject="m")
+    assert "low-n" not in report.flags
+    assert "prevalence" in report.flags
+
+
 def test_score_with_judge_does_not_inherit_previous_judge_score(monkeypatch):
     # a failing judge must leave judge_score unset, not keep the prior judge's value
     from ideval.metrics.base import JudgeVerdict
@@ -161,13 +188,17 @@ def test_score_with_judge_does_not_inherit_previous_judge_score(monkeypatch):
     monkeypatch.setattr("ideval.runner.chat", lambda *a, **k: "x")
     results = generate_outputs(cases, "ollama/qwen2.5:1.5b")
 
-    monkeypatch.setattr("ideval.runner._judge", lambda *a: JudgeVerdict(score=1.0, reason="ok"))
+    monkeypatch.setattr("ideval.runner._judge", lambda *a: (JudgeVerdict(score=1.0, reason="ok"), '{"score": 1.0}'))
     assert score_with_judge(cases, results, "judge-a") == 0
     assert [r.judge_score for r in results] == [1.0] * 4
+    assert [r.judge_reason for r in results] == ["ok"] * 4
+    assert [r.judge_raw for r in results] == [None] * 4
 
-    monkeypatch.setattr("ideval.runner._judge", lambda *a: None)
+    monkeypatch.setattr("ideval.runner._judge", lambda *a: (None, "not json"))
     assert score_with_judge(cases, results, "judge-b") == 4
     assert [r.judge_score for r in results] == [None] * 4
+    assert [r.judge_reason for r in results] == [None] * 4
+    assert [r.judge_raw for r in results] == ["not json"] * 4
 
 
 def test_update_readme_table_replaces_only_marked_region(tmp_path):

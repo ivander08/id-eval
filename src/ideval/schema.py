@@ -33,6 +33,8 @@ class EvalResult(BaseModel):
     output: str
     score: float | None = None  # headline: ground-truth match for scoreable cases, judge verdict for rubric
     judge_score: float | None = None  # set only when a judge ran over this output
+    judge_reason: str | None = None  # judge's stated rationale for judge_score
+    judge_raw: str | None = None     # raw judge text, set ONLY when parsing failed
     error: str | None = None
 
 

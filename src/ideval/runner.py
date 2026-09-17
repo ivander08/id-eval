@@ -7,7 +7,7 @@ from pathlib import Path
 from rich.progress import track
 
 from .adapters import chat, make_client
-from .metrics.base import SCORE_CONTRACT, parse_verdict
+from .metrics.base import SCORE_CONTRACT, JudgeVerdict, parse_verdict
 from .metrics import rubric_for
 from .schema import EvalResult, TestCase, load_suite
 
@@ -78,13 +78,17 @@ def score_with_judge(cases: list[TestCase], results: list[EvalResult], judge_mod
             result.judge_score = None
         else:
             result.score = None
+        result.judge_reason = None
+        result.judge_raw = None
         if result.error:
             errors += 1
             continue
-        verdict = _judge(client, model_id, case, result.output)
+        verdict, raw = _judge(client, model_id, case, result.output)
         if verdict is None:
+            result.judge_raw = raw
             errors += 1
             continue
+        result.judge_reason = verdict.reason
         if case.scoreable:
             result.judge_score = verdict.score
         else:
@@ -113,11 +117,13 @@ def run_suite(suite: str, model: str, judge_model: str | None = None,
     return results
 
 
-def _judge(client, model_id: str, case: TestCase, output: str):
+def _judge(client, model_id: str, case: TestCase, output: str) -> tuple[JudgeVerdict | None, str]:
+    """(verdict, raw). raw == "" means the API call raised; raw != "" with a None
+    verdict means the response did not parse."""
     rubric = rubric_for(case.suite).format(reference=case.expected or "-", contract=SCORE_CONTRACT)
     prompt = f"Context: {case.context or '-'}\n\nPrompt: {case.input}\n\nResponse to evaluate:\n{output}\n\n{rubric}"
     try:
         raw = chat(client, model_id, prompt)
     except Exception:  # noqa: BLE001
-        return None
-    return parse_verdict(raw)
+        return None, ""
+    return parse_verdict(raw), raw
