@@ -1,7 +1,8 @@
 import pytest
 
-from ideval.calibrate import cohens_kappa, precision_recall, spearman
+from ideval.calibrate import build_report, cohens_kappa, pair_scores, precision_recall, spearman
 from ideval.metrics.base import parse_verdict
+from ideval.reporting import update_readme_table
 from ideval.runner import _match_choice, _match_exact, _normalize
 from ideval.schema import TestCase as CaseModel
 from ideval.schema import load_suite, suite_summaries
@@ -128,3 +129,56 @@ def test_load_suite_and_scoreable():
 def test_case_model_rejects_bad_ground_truth_type():
     with pytest.raises(Exception):
         CaseModel(id="x", suite="s", input="i", ground_truth_type="magic")
+
+
+def test_pair_scores_drops_unpaired_and_keeps_order():
+    judge, gt = pair_scores([1.0, None, 0.0], [1.0, 1.0, None])
+    assert judge == [1.0] and gt == [1.0]
+    judge, gt = pair_scores([0.0, 1.0], [0.0, 1.0])
+    assert judge == [0.0, 1.0] and gt == [0.0, 1.0]
+
+
+def test_build_report_known_kappa_and_missing_judge_score():
+    # po=0.75, pe=0.5 -> kappa=0.5 (same textbook value pinned above)
+    report = build_report("j", "factual", [1.0, 1.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0], errors=1)
+    assert report.n == 4
+    assert abs(report.kappa - 0.5) < 1e-9
+    assert report.errors == 1
+
+    # an unscored case shrinks n instead of shifting the statistics
+    report = build_report("j", "factual", [1.0, 1.0, 0.0, 0.0, None], [1.0, 0.0, 0.0, 0.0, 1.0])
+    assert report.n == 4
+    assert abs(report.kappa - 0.5) < 1e-9
+
+
+def test_score_with_judge_does_not_inherit_previous_judge_score(monkeypatch):
+    # a failing judge must leave judge_score unset, not keep the prior judge's value
+    from ideval.metrics.base import JudgeVerdict
+    from ideval.runner import generate_outputs, score_with_judge
+
+    cases = load_suite("factual")[:4]
+    monkeypatch.setattr("ideval.runner.make_client", lambda m: (object(), m))
+    monkeypatch.setattr("ideval.runner.chat", lambda *a, **k: "x")
+    results = generate_outputs(cases, "ollama/qwen2.5:1.5b")
+
+    monkeypatch.setattr("ideval.runner._judge", lambda *a: JudgeVerdict(score=1.0, reason="ok"))
+    assert score_with_judge(cases, results, "judge-a") == 0
+    assert [r.judge_score for r in results] == [1.0] * 4
+
+    monkeypatch.setattr("ideval.runner._judge", lambda *a: None)
+    assert score_with_judge(cases, results, "judge-b") == 4
+    assert [r.judge_score for r in results] == [None] * 4
+
+
+def test_update_readme_table_replaces_only_marked_region(tmp_path):
+    readme = tmp_path / "README.md"
+    readme.write_text(
+        "before\n<!-- calibration:start -->\nold table\n<!-- calibration:end -->\nafter\n",
+        encoding="utf-8")
+    update_readme_table(readme, "| judge |\n|---|\n| new |")
+    assert readme.read_text(encoding="utf-8") == (
+        "before\n<!-- calibration:start -->\n| judge |\n|---|\n| new |\n<!-- calibration:end -->\nafter\n")
+
+    readme.write_text("no markers here\n", encoding="utf-8")
+    with pytest.raises(ValueError):
+        update_readme_table(readme, "x")

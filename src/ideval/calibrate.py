@@ -12,11 +12,13 @@ from pydantic import BaseModel
 class CalibrationReport(BaseModel):
     judge: str
     suite: str
+    subject: str = ""  # which subject's outputs this row grades (required to read the table)
     n: int
     kappa: float | None = None
     spearman: float | None = None
     precision: float | None = None  # judge says "pass" -> how often ground truth agrees
     recall: float | None = None     # ground-truth passes -> how often judge catches them
+    errors: int = 0                 # cases the judge failed to score (report is not silently complete)
 
 
 def _binarize(scores: list[float], threshold: float) -> list[bool]:
@@ -74,3 +76,53 @@ def spearman(a: list[float], b: list[float]) -> float | None:
     num = sum((x - ma) * (y - mb) for x, y in zip(ra, rb))
     den = (sum((x - ma) ** 2 for x in ra) * sum((y - mb) ** 2 for y in rb)) ** 0.5
     return num / den if den else None
+
+
+def pair_scores(judge_scores: list[float | None],
+                gt_scores: list[float | None]) -> tuple[list[float], list[float]]:
+    """Keep only positions where both sides are present; returns (judge, gt)."""
+    paired = [(j, g) for j, g in zip(judge_scores, gt_scores) if j is not None and g is not None]
+    return [j for j, _ in paired], [g for _, g in paired]
+
+
+def build_report(judge: str, suite: str, judge_scores: list[float | None],
+                 gt_scores: list[float | None], errors: int = 0,
+                 subject: str = "") -> CalibrationReport:
+    """Pair, then compute kappa / precision / recall / spearman. n = len(paired)."""
+    j, g = pair_scores(judge_scores, gt_scores)
+    precision, recall = precision_recall(j, g)
+    return CalibrationReport(
+        judge=judge, suite=suite, subject=subject, n=len(j),
+        kappa=cohens_kappa(j, g),
+        spearman=spearman(j, g),
+        precision=precision, recall=recall,
+        errors=errors,
+    )
+
+
+def run_calibration(suites: list[str], subjects: list[str], judges: list[str],
+                    limit: int | None = None) -> tuple[list[CalibrationReport], list[dict]]:
+    """Subject outputs generated once per (suite, subject), then every judge scores
+    the same outputs. Returns (reports, pair rows)."""
+    from . import runner, schema  # deferred: keeps list-suites free of the runner/rich chain
+
+    reports: list[CalibrationReport] = []
+    pairs: list[dict] = []
+    for suite in suites:
+        cases = schema.load_suite(suite)
+        if limit:
+            cases = cases[:limit]
+        for subject in subjects:
+            results = runner.generate_outputs(cases, subject)
+            for judge in judges:
+                errors = runner.score_with_judge(cases, results, judge)
+                judge_scores = [r.judge_score for r in results]
+                gt_scores = [r.score for r in results]
+                reports.append(build_report(judge, suite, judge_scores, gt_scores, errors, subject))
+                pairs.extend(
+                    {"suite": suite, "subject": subject, "judge": judge,
+                     "case_id": case.id, "gt": gt, "judge_score": js}
+                    for case, js, gt in zip(cases, judge_scores, gt_scores)
+                    if js is not None and gt is not None
+                )
+    return reports, pairs

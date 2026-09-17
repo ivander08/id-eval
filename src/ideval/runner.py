@@ -8,6 +8,7 @@ from rich.progress import track
 
 from .adapters import chat, make_client
 from .metrics.base import SCORE_CONTRACT, parse_verdict
+from .metrics import rubric_for
 from .schema import EvalResult, TestCase, load_suite
 
 _PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
@@ -35,38 +36,24 @@ def _match_choice(output: str, expected: str) -> float:
     return float(bool(letters) and letters[-1] == expected.strip().upper())
 
 
-def run_suite(suite: str, model: str, judge_model: str | None = None,
-              limit: int | None = None, out: Path | None = None) -> list[EvalResult]:
-    cases = load_suite(suite)
-    if limit:
-        cases = cases[:limit]
-
-    judge_client = judge_model_id = None
-    if judge_model:
-        judge_client, judge_model_id = make_client(judge_model)
-
+def generate_outputs(cases: list[TestCase], model: str) -> list[EvalResult]:
+    """Subject-model outputs + ground-truth scores. No judge calls."""
     needs_subject = any(not c.judge_only for c in cases)
     subject_client = subject_model_id = None
     if needs_subject:
         subject_client, subject_model_id = make_client(model)
 
+    suite = cases[0].suite if cases else "?"
     results: list[EvalResult] = []
     for case in track(cases, description=f"{suite} x {model}"):
+        if case.judge_only:
+            results.append(EvalResult(case_id=case.id, suite=case.suite, model="(embedded)", output=case.input))
+            continue
         try:
-            if case.judge_only:
-                result = EvalResult(case_id=case.id, suite=suite, model="(embedded)", output=case.input)
-                if judge_client:
-                    verdict = _judge(judge_client, judge_model_id, case, case.input)
-                    result.score = verdict.score if verdict else None
-                else:
-                    result.error = "judge_only case requires --judge"
-                results.append(result)
-                continue
-
             output = chat(subject_client, subject_model_id, case.input, case.context)
-            result = EvalResult(case_id=case.id, suite=suite, model=model, output=output)
+            result = EvalResult(case_id=case.id, suite=case.suite, model=model, output=output)
         except Exception as e:  # noqa: BLE001 - record and continue
-            results.append(EvalResult(case_id=case.id, suite=suite, model=model, output="", error=str(e)))
+            results.append(EvalResult(case_id=case.id, suite=case.suite, model=model, output="", error=str(e)))
             continue
 
         if case.scoreable:
@@ -74,10 +61,50 @@ def run_suite(suite: str, model: str, judge_model: str | None = None,
                 result.score = _match_choice(output, case.expected or "")
             else:
                 result.score = _match_exact(output, case.expected or "")
-        elif judge_client:
-            verdict = _judge(judge_client, judge_model_id, case, output)
-            result.score = verdict.score if verdict else None
         results.append(result)
+    return results
+
+
+def score_with_judge(cases: list[TestCase], results: list[EvalResult], judge_model: str) -> int:
+    """Fill judge_score (scoreable) or score (rubric) on `results`. Returns the
+    number of cases the judge failed to score.
+
+    Every case is reset before scoring, so a judge that fails leaves the field
+    unset instead of inheriting the previous judge's verdict."""
+    client, model_id = make_client(judge_model)
+    errors = 0
+    for case, result in zip(cases, results):
+        if case.scoreable:
+            result.judge_score = None
+        else:
+            result.score = None
+        if result.error:
+            errors += 1
+            continue
+        verdict = _judge(client, model_id, case, result.output)
+        if verdict is None:
+            errors += 1
+            continue
+        if case.scoreable:
+            result.judge_score = verdict.score
+        else:
+            result.score = verdict.score
+    return errors
+
+
+def run_suite(suite: str, model: str, judge_model: str | None = None,
+              limit: int | None = None, out: Path | None = None) -> list[EvalResult]:
+    cases = load_suite(suite)
+    if limit:
+        cases = cases[:limit]
+
+    results = generate_outputs(cases, model)
+    if judge_model:
+        score_with_judge(cases, results, judge_model)
+    else:
+        for case, result in zip(cases, results):
+            if case.judge_only:
+                result.error = "judge_only case requires --judge"
 
     if out:
         payload = {"suite": suite, "model": model, "judge": judge_model,
@@ -87,7 +114,8 @@ def run_suite(suite: str, model: str, judge_model: str | None = None,
 
 
 def _judge(client, model_id: str, case: TestCase, output: str):
-    prompt = f"Context: {case.context or '-'}\n\nPrompt: {case.input}\n\nResponse to evaluate:\n{output}\n\n{SCORE_CONTRACT}"
+    rubric = rubric_for(case.suite).format(reference=case.expected or "-", contract=SCORE_CONTRACT)
+    prompt = f"Context: {case.context or '-'}\n\nPrompt: {case.input}\n\nResponse to evaluate:\n{output}\n\n{rubric}"
     try:
         raw = chat(client, model_id, prompt)
     except Exception:  # noqa: BLE001

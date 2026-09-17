@@ -31,7 +31,8 @@ class EvalResult(BaseModel):
     suite: str
     model: str
     output: str
-    score: float | None = None  # 0..1 for exact match; None = needs judge (rubric)
+    score: float | None = None  # headline: ground-truth match for scoreable cases, judge verdict for rubric
+    judge_score: float | None = None  # set only when a judge ran over this output
     error: str | None = None
 
 

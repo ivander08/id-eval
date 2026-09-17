@@ -37,24 +37,41 @@ def print_results(results: list[EvalResult]) -> None:
 def print_calibration(reports: list[CalibrationReport]) -> None:
     table = Table(title="judge calibration vs exact-match ground truth")
     table.add_column("judge")
+    table.add_column("subject")
     table.add_column("suite")
     table.add_column("n", justify="right")
     table.add_column("kappa", justify="right")
     table.add_column("prec", justify="right")
     table.add_column("recall", justify="right")
     table.add_column("spearman", justify="right")
+    table.add_column("err", justify="right")
     for r in reports:
         fmt = lambda v: "-" if v is None else format(v, ".3f")  # noqa: E731
-        table.add_row(r.judge, r.suite, str(r.n), fmt(r.kappa), fmt(r.precision), fmt(r.recall), fmt(r.spearman))
+        table.add_row(r.judge, r.subject, r.suite, str(r.n), fmt(r.kappa), fmt(r.precision), fmt(r.recall),
+                      fmt(r.spearman), str(r.errors))
     console.print(table)
+
+
+CALIBRATION_START = "<!-- calibration:start -->"
+CALIBRATION_END = "<!-- calibration:end -->"
+
+
+def update_readme_table(path: Path, markdown: str) -> None:
+    """Replace the content between the calibration markers in `path`."""
+    text = path.read_text(encoding="utf-8")
+    if CALIBRATION_START not in text or CALIBRATION_END not in text:
+        raise ValueError(f"{path} is missing calibration markers")
+    head, rest = text.split(CALIBRATION_START, 1)
+    _, tail = rest.split(CALIBRATION_END, 1)
+    path.write_text(f"{head}{CALIBRATION_START}\n{markdown}\n{CALIBRATION_END}{tail}", encoding="utf-8")
 
 
 def actions_summary(reports: list[CalibrationReport]) -> str:
     """Markdown for GitHub Actions job summaries."""
-    lines = ["| judge | suite | n | kappa | precision | recall | spearman |",
-             "|---|---|---:|---:|---:|---:|---:|"]
+    lines = ["| judge | subject | suite | n | kappa | precision | recall | spearman | err |",
+             "|---|---|---|---:|---:|---:|---:|---:|---:|"]
     for r in reports:
         fmt = lambda v: "-" if v is None else format(v, ".3f")  # noqa: E731
-        lines.append(f"| {r.judge} | {r.suite} | {r.n} | {fmt(r.kappa)} | "
-                     f"{fmt(r.precision)} | {fmt(r.recall)} | {fmt(r.spearman)} |")
+        lines.append(f"| {r.judge} | {r.subject} | {r.suite} | {r.n} | {fmt(r.kappa)} | "
+                     f"{fmt(r.precision)} | {fmt(r.recall)} | {fmt(r.spearman)} | {r.errors} |")
     return "\n".join(lines)

@@ -34,10 +34,30 @@ def run(suite: str, model: str = typer.Option(..., "--model", "-m"),
 
 
 @app.command()
-def calibrate(suite: str = "factual", judges: str = "openrouter/openai/gpt-4o-mini",
-              limit: int | None = None, out_json: Path | None = None) -> None:
+def calibrate(
+    subject: list[str] = typer.Option(..., "--subject", "-m", help="subject model(s); repeatable"),
+    judge: list[str] | None = typer.Option(None, "--judge", help="judge model(s); repeatable"),
+    suite: list[str] | None = typer.Option(None, "--suite", help="suite(s); repeatable"),
+    limit: int | None = typer.Option(None, "--limit"),
+    out: Path | None = typer.Option(None, "--out"),
+    update_readme: bool = typer.Option(False, "--update-readme"),
+) -> None:
     """Measure judge agreement against exact-match ground truth (M2)."""
-    typer.echo("calibrate: wired to real runs in M2 (statistics implemented and tested)")
+    from .calibrate import run_calibration  # deferred: keeps list-suites dependency-free
+
+    judges = judge or ["kenari/deepseek-v4-1-flash"]
+    suites = suite or ["factual", "factual_indommlu", "factual_tydiqa"]
+    reports, pairs = run_calibration(suites, subject, judges, limit=limit)
+    reporting.print_calibration(reports)
+    if out:
+        payload = {"config": {"suites": suites, "subjects": subject, "judges": judges, "limit": limit},
+                   "reports": [r.model_dump() for r in reports],
+                   "pairs": pairs}
+        out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        reporting.console.print(f"wrote {out}")
+    if update_readme:
+        reporting.update_readme_table(Path("README.md"), reporting.actions_summary(reports))
+        reporting.console.print("updated README.md calibration table")
 
 
 @app.command()
