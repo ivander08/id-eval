@@ -37,6 +37,7 @@ def print_results(results: list[EvalResult]) -> None:
 def print_calibration(reports: list[CalibrationReport]) -> None:
     table = Table(title="judge calibration vs exact-match ground truth")
     table.add_column("judge")
+    table.add_column("vs")
     table.add_column("subject")
     table.add_column("suite")
     table.add_column("n", justify="right")
@@ -51,7 +52,8 @@ def print_calibration(reports: list[CalibrationReport]) -> None:
     table.add_column("flags")
     for r in reports:
         fmt = lambda v: "-" if v is None else format(v, ".3f")  # noqa: E731
-        table.add_row(r.judge, r.subject, r.suite, str(r.n), fmt(r.kappa), fmt(r.pabak),
+        table.add_row(r.judge, r.judge_b or "truth", r.subject, r.suite, str(r.n),
+                      fmt(r.kappa), fmt(r.pabak),
                       fmt(r.test_retest), fmt(r.framing_agreement),
                       fmt(r.precision), fmt(r.recall), fmt(r.spearman), str(r.errors),
                       ", ".join(r.flags))
@@ -74,11 +76,11 @@ def update_readme_table(path: Path, markdown: str) -> None:
 
 def actions_summary(reports: list[CalibrationReport]) -> str:
     """Markdown for GitHub Actions job summaries."""
-    lines = ["| judge | subject | suite | n | kappa | pabak | retest | frame | precision | recall | spearman | err | flags |",
-             "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|"]
+    lines = ["| judge | vs | subject | suite | n | kappa | pabak | retest | frame | precision | recall | spearman | err | flags |",
+             "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
     for r in reports:
         fmt = lambda v: "-" if v is None else format(v, ".3f")  # noqa: E731
-        lines.append(f"| {r.judge} | {r.subject} | {r.suite} | {r.n} | {fmt(r.kappa)} | {fmt(r.pabak)} | "
+        lines.append(f"| {r.judge} | {r.judge_b or 'truth'} | {r.subject} | {r.suite} | {r.n} | {fmt(r.kappa)} | {fmt(r.pabak)} | "
                      f"{fmt(r.test_retest)} | {fmt(r.framing_agreement)} | {fmt(r.precision)} | "
                      f"{fmt(r.recall)} | {fmt(r.spearman)} | {r.errors} | {', '.join(r.flags)} |")
     return "\n".join(lines)

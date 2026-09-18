@@ -123,6 +123,33 @@ agreement), `kappa`, and `pabak` — and reports all four. With `--repeats > 1` 
 adds `test_retest` and `framing_agreement` (§5), so a row carries both axes of
 Norman et al.'s protocol rather than only the validity one.
 
+### Two axes, one table
+
+A suite whose cases are all `rubric` has no numeric ground truth, so there is
+nothing to score a judge against. `run_calibration` detects that (`not any(c.scoreable
+for c in cases)`) and emits **one row per judge pair** instead of one row per
+judge: `build_inter_judge_report(judge, judge_b, ...)` compares two judges over
+the same subject outputs.
+
+The two row kinds share `CalibrationReport`, distinguished by `judge_b`:
+empty means judge-vs-ground-truth, non-empty names the judge compared against.
+The `vs` column renders `truth` or the opponent, unconditionally, so a table can
+never be misread as all-one-axis and two runs stay diffable. Precision/recall on
+a pair row read as "how often this judge's passes are also the other's".
+
+Three choices worth recording. Pairs are generated with `judges[i+1:]`, so a judge
+is never compared against itself — that would report a trivial `kappa = 1.0`.
+`self-judge` fires when the subject is *either* side of the pair, because the pair
+is confounded by self-preference bias regardless of which side the subject sits
+on. And the stability columns are the mean of the two judges' own values rather
+than a pooled figure: pooling two judges' draws would mix items and describe
+neither judge. Each judge's raw draws stay on the pair rows, so either can be
+recomputed.
+
+A rubric suite run with fewer than two judges emits no rows and prints a warning.
+That is intended — with one judge there is no comparison, and no ground truth to
+fall back on.
+
 The reason is a published and common failure mode. On a near-constant ground
 truth, `pe` approaches 1, and kappa collapses toward zero **no matter how well the
 judge agrees**. From the shipped study:
@@ -240,6 +267,10 @@ construction" is now quantified rather than asserted.
  "expected", "output", "reason"}
 ```
 
+`gt` is `null` on rubric rows, where the judge's verdict is the only score in
+play; `judge_score` carries that verdict either way, so the field keeps one
+meaning across both row kinds: what the judge said.
+
 This is a deliberate denormalisation. `results_calibration.json` is a gitignored
 diagnostic artifact, not a published dataset, so the cost of repeating each
 subject output once per judge is irrelevant — and the benefit is that **any
@@ -352,13 +383,26 @@ statistic — stability of failure is still stability. Coverage is what `n` and
 Recording this is the point of the document — a design note that only lists
 strengths is marketing.
 
-1. **The rubric suites are uncalibrated.** `factual`, `factual_indommlu` and
-   `factual_tydiqa` all have matcher-decidable ground truth and are the only
-   suites the calibration study covers. `cultural`, `register` and `codemix` — 54
-   cases — are scored by judges whose agreement has never been measured. Their
-   numbers should be read as unvalidated. The multilingual-judge literature is
-   unambiguous that reliability is language-conditional and should not be assumed
+1. **The rubric suites have no numeric ground truth.** `cultural`, `register` and
+   `codemix` — 54 cases — declare `ground_truth_type: rubric` and carry no
+   `expected` value, so there is nothing to score a judge against. They are now
+   calibrated on a different axis: **inter-judge agreement**, one row per judge
+   pair, reported with the same kappa/PABAK/stability columns as the factual rows
+   and labelled `vs <judge>` in the `vs` column so a reader cannot mistake them
+   for judge-vs-truth. What remains wrong is the axis itself — two judges agreeing
+   says nothing about whether either is correct, and the multilingual-judge
+   literature is unambiguous that reliability is language-conditional
    (Doğruöz et al.; Fu & Liu report mean Fleiss' κ ≈ 0.3 across 25 languages).
+   Authoring `expected` values for these 54 cases is the only way to close it,
+   and the labels would themselves be a single rater's judgment — the exact
+   reliability problem being measured.
+
+   The inter-judge result is worth stating plainly. Across the 18 rubric pair
+   rows, the two API judges agree with each other at a mean `kappa = 0.856`
+   (`test_retest = 0.992`, `framing_agreement = 0.986`), while any pair
+   containing the local judge sits at a mean `kappa = 0.039` (`0.921`, `0.785`).
+   Four pairs are `unstable` and six are `framing-sensitive` — every one of them
+   a pair with the local judge.
 
 2. **Pairwise position bias is unmeasured.** `_judge` presents a single response
    against a rubric, so pairwise position bias does not apply directly. The

@@ -1,12 +1,13 @@
 import pytest
 
-from ideval.calibrate import (agreement_terms, build_report, cohens_kappa, framing_agreement,
-                              pabak, pair_scores, precision_recall, spearman)
+from ideval.calibrate import (agreement_terms, build_inter_judge_report, build_report,
+                              cohens_kappa, framing_agreement, pabak, pair_scores,
+                              precision_recall, spearman)
 from ideval.calibrate import test_retest as retest_agreement  # aliased: pytest collects bare `test_*` names
 from ideval.metrics.base import parse_verdict
 from ideval.reporting import update_readme_table
 from ideval.runner import _match_choice, _match_exact, _normalize
-from ideval.schema import TestCase as CaseModel
+from ideval.schema import EvalResult, TestCase as CaseModel
 from ideval.schema import load_suite, suite_summaries
 
 
@@ -244,6 +245,65 @@ def test_score_with_judge_does_not_inherit_previous_judge_score(monkeypatch):
     assert score_with_judge(cases, results, "judge-d", repeats=3) == 4
     assert [r.judge_repeats for r in results] == [[]] * 4
     assert [r.judge_raw for r in results] == ["not json"] * 4
+
+
+def test_build_inter_judge_report_agrees_on_identical_vectors():
+    report = build_inter_judge_report("a", "b", "cultural", [1.0, 0.0, 1.0, 0.0], [1.0, 0.0, 1.0, 0.0])
+    assert report.kappa == 1.0
+    assert report.judge_b == "b"
+    assert report.n == 4
+
+    # complete disagreement: po = 0.0 -> kappa = -1.0
+    report = build_inter_judge_report("a", "b", "cultural", [1.0, 0.0, 1.0, 0.0], [0.0, 1.0, 0.0, 1.0])
+    assert report.kappa == -1.0
+
+
+def test_build_inter_judge_report_errors_make_n_plus_errors_hold():
+    report = build_inter_judge_report("a", "b", "cultural", [1.0, None, 1.0], [1.0, 1.0, None], errors=2)
+    assert report.n == 1
+    assert report.n + report.errors == 3
+
+
+def test_build_inter_judge_report_flags_self_judge_pair():
+    # a pair is confounded when the subject is either side of it, not just the left
+    report = build_inter_judge_report("m", "b", "cultural", [1.0], [1.0], subject="m")
+    assert "self-judge" in report.flags
+
+    report = build_inter_judge_report("a", "m", "cultural", [1.0], [1.0], subject="m")
+    assert "self-judge" in report.flags
+
+    report = build_inter_judge_report("m", "b", "cultural", [1.0], [1.0], subject="other")
+    assert "self-judge" not in report.flags
+
+
+def test_run_calibration_scores_rubric_suites_via_judge_pairs(monkeypatch):
+    # rubric suites have no numeric ground truth, so they yield judge-pair rows
+    # instead of the empty reports the judge-vs-truth path used to produce
+    from ideval.calibrate import run_calibration
+
+    monkeypatch.setattr("ideval.runner.generate_outputs",
+                        lambda cases, model: [EvalResult(case_id=c.id, suite=c.suite, model=model, output="x")
+                                              for c in cases])
+    verdicts = {"judge-a": 0.9, "judge-b": 0.2, "judge-c": 0.9}
+
+    def fake_score(cases, results, judge, repeats=1):
+        for case, result in zip(cases, results):
+            if case.scoreable:
+                result.judge_score = verdicts[judge]
+            else:
+                result.score = verdicts[judge]
+            result.judge_repeats = [verdicts[judge]] * repeats
+        return 0
+
+    monkeypatch.setattr("ideval.runner.score_with_judge", fake_score)
+    reports, pairs = run_calibration(["cultural"], ["m"], ["judge-a", "judge-b", "judge-c"], limit=4)
+
+    assert len(reports) == 3  # three unordered pairs, no judge compared with itself
+    assert all(r.n == 4 for r in reports)
+    assert {r.judge_b for r in reports} == {"judge-b", "judge-c"}
+    assert {r.judge for r in reports} == {"judge-a", "judge-b"}
+    assert len(pairs) == 12  # 3 judges x 4 cases, each carrying the rubric verdict
+    assert all(p["gt"] is None and p["judge_score"] is not None for p in pairs)
 
 
 def test_update_readme_table_replaces_only_marked_region(tmp_path):

@@ -19,6 +19,7 @@ class CalibrationReport(BaseModel):
     judge: str
     suite: str
     subject: str = ""  # which subject's outputs this row grades (required to read the table)
+    judge_b: str = ""  # set only on inter-judge rows: the judge compared against `judge`
     n: int
     kappa: float | None = None
     agreement: float | None = None  # observed agreement po
@@ -177,12 +178,52 @@ def build_report(judge: str, suite: str, judge_scores: list[float | None],
     )
 
 
+def build_inter_judge_report(judge: str, judge_b: str, suite: str,
+                             scores_a: list[float | None], scores_b: list[float | None],
+                             errors: int = 0, subject: str = "",
+                             draws_a: list[list[float]] | None = None,
+                             draws_b: list[list[float]] | None = None) -> CalibrationReport:
+    """Agreement between two judges over the same subject outputs. `judge` is the
+    prediction side, `judge_b` the reference side, so precision/recall read as
+    "how often judge's passes are also judge_b's passes" and vice versa.
+
+    `errors` is the number of cases where at least one of the two judges produced
+    no verdict, so n + errors equals the case count for the pair. Stability
+    columns are the mean of the two judges' own values; each judge's raw draws
+    stay on the pair rows, so either can be recomputed."""
+    j, g = pair_scores(scores_a, scores_b)
+    precision, recall = precision_recall(j, g)
+    po, pe = agreement_terms(j, g)
+    stabilities = [s for s in (test_retest(draws_a or []), test_retest(draws_b or [])) if s is not None]
+    framings = [f for f in (framing_agreement(draws_a or []), framing_agreement(draws_b or [])) if f is not None]
+    stability = sum(stabilities) / len(stabilities) if stabilities else None
+    framing = sum(framings) / len(framings) if framings else None
+    flags = _flags(len(j), pe, "", judge, stability, framing)
+    if subject and subject in (judge, judge_b):
+        flags.append("self-judge")
+    return CalibrationReport(
+        judge=judge, judge_b=judge_b, suite=suite, subject=subject, n=len(j),
+        kappa=cohens_kappa(j, g),
+        agreement=po,
+        pabak=pabak(j, g),
+        test_retest=stability,
+        framing_agreement=framing,
+        spearman=spearman(j, g),
+        precision=precision, recall=recall,
+        errors=errors,
+        flags=flags,
+    )
+
+
 def run_calibration(suites: list[str], subjects: list[str], judges: list[str],
                     limit: int | None = None, repeats: int = 1) -> tuple[list[CalibrationReport], list[dict]]:
     """Subject outputs generated once per (suite, subject), then every judge scores
-    the same outputs. Returns (reports, pair rows); pair rows carry `expected`,
-    `output`, the judge `reason` and every repeated `judge_scores` draw so any
-    disagreement or instability is auditable without a join."""
+    the same outputs. Returns (reports, pair rows).
+
+    A suite whose cases are all rubric has no numeric ground truth, so it yields
+    one report per judge pair (inter-judge agreement) instead of one report per
+    judge. A rubric suite graded by fewer than two judges yields no rows, since
+    there is nothing to compare; that is warned about, not raised."""
     from . import runner, schema  # deferred: keeps list-suites free of the runner/rich chain
 
     reports: list[CalibrationReport] = []
@@ -191,24 +232,51 @@ def run_calibration(suites: list[str], subjects: list[str], judges: list[str],
         cases = schema.load_suite(suite)
         if limit:
             cases = cases[:limit]
+        rubric = not any(c.scoreable for c in cases)
         for subject in subjects:
             results = runner.generate_outputs(cases, subject)
             outputs = [r.output for r in results]
+            verdicts: dict[str, list[float | None]] = {}
+            draw_vectors: dict[str, list[list[float]]] = {}
+            reasons: dict[str, list[str | None]] = {}
+            judge_errors: dict[str, int] = {}
             for judge in judges:
-                errors = runner.score_with_judge(cases, results, judge, repeats=repeats)
-                judge_scores = [r.judge_score for r in results]
-                gt_scores = [r.score for r in results]
-                reasons = [r.judge_reason for r in results]
-                draws = [r.judge_repeats for r in results]
-                reports.append(build_report(judge, suite, judge_scores, gt_scores, errors,
-                                            subject, draws))
+                judge_errors[judge] = runner.score_with_judge(cases, results, judge, repeats=repeats)
+                # scoreable: judge_score is the verdict and score is the ground truth.
+                # rubric: score IS the verdict and judge_score is never set.
+                verdicts[judge] = [r.judge_score if c.scoreable else r.score
+                                   for c, r in zip(cases, results)]
+                draw_vectors[judge] = [r.judge_repeats for r in results]
+                reasons[judge] = [r.judge_reason for r in results]
+                if not rubric:
+                    reports.append(build_report(judge, suite, verdicts[judge],
+                                                [r.score for r in results],
+                                                judge_errors[judge], subject,
+                                                draw_vectors[judge]))
+            for judge, js, reason, draws in zip(
+                    judges, [verdicts[j] for j in judges],
+                    [reasons[j] for j in judges], [draw_vectors[j] for j in judges]):
                 pairs.extend(
                     {"suite": suite, "subject": subject, "judge": judge,
-                     "case_id": case.id, "gt": gt, "judge_score": js,
-                     "judge_scores": ds,
-                     "expected": case.expected, "output": out, "reason": reason}
-                    for case, js, gt, reason, out, ds in zip(
-                        cases, judge_scores, gt_scores, reasons, outputs, draws)
-                    if js is not None and gt is not None
+                     "case_id": case.id, "gt": gt if case.scoreable else None,
+                     "judge_score": js_, "judge_scores": ds,
+                     "expected": case.expected, "output": out, "reason": reason_}
+                    for case, js_, gt, reason_, out, ds in zip(
+                        cases, js, [r.score for r in results], reason, outputs, draws)
+                    if js_ is not None
                 )
+            if rubric:
+                for i, a in enumerate(judges):
+                    for b in judges[i + 1:]:
+                        errors = sum(1 for x, y in zip(verdicts[a], verdicts[b])
+                                     if x is None or y is None)
+                        reports.append(build_inter_judge_report(
+                            a, b, suite, verdicts[a], verdicts[b], errors, subject,
+                            draw_vectors[a], draw_vectors[b]))
+                if len(judges) < 2:
+                    from . import reporting
+                    reporting.console.print(
+                        f"[yellow]rubric suite '{suite}' has no ground truth and "
+                        f"{len(judges)} judge(s); inter-judge agreement needs 2+. "
+                        f"Pass another --judge to get rows.[/yellow]")
     return reports, pairs
