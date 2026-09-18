@@ -4,10 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "id-eval"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Indonesian LLM evaluation toolkit: curated suites, calibrated LLM-as-judge, CI-ready."
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [{ name = "ivn" }]
 keywords = ["llm", "evaluation", "indonesian", "bahasa-indonesia", "llm-as-judge", "rag", "benchmark"]
@@ -25,17 +26,31 @@ dependencies = [
     "pydantic>=2.7",
     "openai>=1.40",
     "rich>=13.7",
-    "deepeval>=2.0",
+    "deepeval>=4.2",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "build>=1.2", "twine>=5.0"]
+
+[project.urls]
+Homepage = "https://github.com/ivander08/id-eval"
+Repository = "https://github.com/ivander08/id-eval"
+Issues = "https://github.com/ivander08/id-eval/issues"
 
 [project.scripts]
 ideval = "ideval.cli:app"
 
+[tool.hatch.version]
+path = "src/ideval/__init__.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/ideval"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"suites" = "ideval/suites"
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "suites", "tests", "docs", "README.md", "LICENSE", "pyproject.toml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

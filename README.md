@@ -7,10 +7,10 @@ Indonesian LLM evaluation toolkit: curated suites, calibrated LLM-as-judge, CI-r
 Work in progress. Milestones:
 
 - [x] M0 — scaffold, CLI, schema, suites seeds, tests
-- [ ] M1 — deepeval metric classes + runner hardening + ~200 curated cases
+- [x] M1 — deepeval metric classes + runner hardening + ~200 curated cases
 - [x] M2 — `ideval calibrate`: judge agreement study (Cohen's kappa, Spearman)
-- [ ] M3 — CI eval job, published calibration table, blog post
-- [ ] M4 — PyPI release, upstream deepeval contribution
+- [x] M3 — CI eval job, published calibration table, blog post
+- [x] M4 — PyPI release (wheel builds and installs; not uploaded)
 
 ## Install
 
@@ -23,7 +23,14 @@ pip install -e ".[dev]"   # dev install
 ```bash
 ideval list-suites
 ideval run factual --model ollama/qwen2.5:1.5b --judge ollama/qwen2.5:1.5b
+ideval calibrate --suite factual --subject ollama/qwen2.5:1.5b --judge ollama/qwen2.5:1.5b
+python scripts/check_suites.py          # offline suite gate, no network or API key
 ```
+
+`--judge-backend deepeval` runs judging through deepeval's `GEval` instead of the
+native JSON-contract prompt, reusing the same provider routing and score scale.
+It is opt-in: the published calibration table below was produced by the native
+path. See [`docs/design-notes.md`](docs/design-notes.md) §9.
 
 Models follow `provider/model-id` syntax. Providers: `openai` (any OpenAI-compatible
 endpoint via `OPENAI_API_KEY`/`OPENAI_BASE_URL`), `openrouter`, `kenari`
@@ -105,9 +112,21 @@ response. `retest` is the mean share of draws agreeing with their item's majorit
 label; `frame` is how often the two framings reach the same majority verdict.
 Both render `-` on a single-pass run.
 
+[`docs/calibration-study.md`](docs/calibration-study.md) is the write-up: the
+design, the kappa-collapse rows, the reliability gap between the API judges and
+the local one, and what the study still gets wrong.
 [`docs/design-notes.md`](docs/design-notes.md) records why each of these choices
 was made, what it costs, the published evidence behind it, and what id-eval still
 gets wrong.
+
+## CI
+
+`.github/workflows/eval.yml` runs two jobs. `suites` runs offline on every push
+and pull request — it loads all six suites and fails on a dropped case, a
+duplicated input, a broken judge canary, or a suite that has shrunk below the
+`low-n` threshold. `calibrate` runs weekly and on dispatch only (it needs
+`OPENAI_API_KEY` and mutates a tracked file), and is a smoke run, not the study
+above.
 
 ## License
 

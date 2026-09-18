@@ -7,7 +7,11 @@ from pydantic import BaseModel, Field
 
 GroundTruthType = Literal["exact", "choice", "rubric"]
 
-SUITES_DIR = Path(__file__).resolve().parents[2] / "suites"
+_PACKAGED_SUITES = Path(__file__).resolve().parent / "suites"
+_REPO_SUITES = Path(__file__).resolve().parents[2] / "suites"
+# wheels ship suites/ inside the package; an editable install has no packaged dir
+# and falls back to the repo root
+SUITES_DIR = _PACKAGED_SUITES if _PACKAGED_SUITES.is_dir() else _REPO_SUITES
 
 
 class TestCase(BaseModel):

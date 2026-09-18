@@ -216,7 +216,8 @@ def build_inter_judge_report(judge: str, judge_b: str, suite: str,
 
 
 def run_calibration(suites: list[str], subjects: list[str], judges: list[str],
-                    limit: int | None = None, repeats: int = 1) -> tuple[list[CalibrationReport], list[dict]]:
+                    limit: int | None = None, repeats: int = 1,
+                    judge_backend: str = "native") -> tuple[list[CalibrationReport], list[dict]]:
     """Subject outputs generated once per (suite, subject), then every judge scores
     the same outputs. Returns (reports, pair rows).
 
@@ -241,7 +242,9 @@ def run_calibration(suites: list[str], subjects: list[str], judges: list[str],
             reasons: dict[str, list[str | None]] = {}
             judge_errors: dict[str, int] = {}
             for judge in judges:
-                judge_errors[judge] = runner.score_with_judge(cases, results, judge, repeats=repeats)
+                judge_errors[judge] = runner.score_with_judge(cases, results, judge,
+                                                              repeats=repeats,
+                                                              backend=judge_backend)
                 # scoreable: judge_score is the verdict and score is the ground truth.
                 # rubric: score IS the verdict and judge_score is never set.
                 verdicts[judge] = [r.judge_score if c.scoreable else r.score

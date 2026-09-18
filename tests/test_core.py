@@ -286,7 +286,7 @@ def test_run_calibration_scores_rubric_suites_via_judge_pairs(monkeypatch):
                                               for c in cases])
     verdicts = {"judge-a": 0.9, "judge-b": 0.2, "judge-c": 0.9}
 
-    def fake_score(cases, results, judge, repeats=1):
+    def fake_score(cases, results, judge, repeats=1, backend="native"):
         for case, result in zip(cases, results):
             if case.scoreable:
                 result.judge_score = verdicts[judge]
@@ -304,6 +304,37 @@ def test_run_calibration_scores_rubric_suites_via_judge_pairs(monkeypatch):
     assert {r.judge for r in reports} == {"judge-a", "judge-b"}
     assert len(pairs) == 12  # 3 judges x 4 cases, each carrying the rubric verdict
     assert all(p["gt"] is None and p["judge_score"] is not None for p in pairs)
+
+
+def test_deepeval_backend_scores_on_the_repo_scale(monkeypatch):
+    # GEval's default score range is (0, 10): without the (0, 1) rubric the same
+    # 0.8 verdict is normalized to 0.08. This pins the range, not the plumbing.
+    from ideval.metrics.base import JudgeVerdict
+    from ideval.metrics.deepeval_backend import RepoJudge, judge_case
+
+    monkeypatch.setattr(RepoJudge, "load_model", lambda self, *a, **k: None)
+    monkeypatch.setattr(RepoJudge, "generate",
+                        lambda self, *a, **k: '{"score": 0.8, "reason": "sebagian benar"}')
+    judge = RepoJudge("stub/judge")
+    case = load_suite("factual")[0]
+    assert judge_case(judge, case, "Bandung adalah ibu kota Jawa Barat") == (
+        JudgeVerdict(score=0.8, reason="sebagian benar"), "sebagian benar")
+
+
+def test_deepeval_framing_templates_alternate():
+    from ideval.metrics.deepeval_backend import (FramingTemplateResponseFirst,
+                                                 FramingTemplateRubricFirst)
+
+    kwargs = {"evaluation_steps": "1. compare", "test_case_content": "Input:\nx",
+              "parameters": "Input", "score_range": (0, 1)}
+    response_first = FramingTemplateResponseFirst.generate_evaluation_results(**kwargs)
+    rubric_first = FramingTemplateRubricFirst.generate_evaluation_results(**kwargs)
+
+    assert response_first != rubric_first
+    for rendered in (response_first, rubric_first):
+        assert "Evaluation Steps:" in rendered and "Test Case:" in rendered
+    assert response_first.index("Evaluation Steps:") < response_first.index("Test Case:")
+    assert rubric_first.index("Test Case:") < rubric_first.index("Evaluation Steps:")
 
 
 def test_update_readme_table_replaces_only_marked_region(tmp_path):

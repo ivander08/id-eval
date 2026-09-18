@@ -81,7 +81,7 @@ def generate_outputs(cases: list[TestCase], model: str) -> list[EvalResult]:
 
 
 def score_with_judge(cases: list[TestCase], results: list[EvalResult], judge_model: str,
-                     repeats: int = 1) -> int:
+                     repeats: int = 1, backend: str = "native") -> int:
     """Fill judge_score (scoreable) or score (rubric) on `results`. Returns the
     number of cases the judge failed to score on every draw.
 
@@ -91,8 +91,17 @@ def score_with_judge(cases: list[TestCase], results: list[EvalResult], judge_mod
     With repeats > 1 each case is judged `repeats` times, alternating prompt
     framing (variant = draw index % 2). `judge_score` is the first successful
     draw; `judge_repeats` holds them all. A case counts as an error only when
-    every draw failed, so `n + errors` still equals the case count."""
-    client, model_id = make_client(judge_model)
+    every draw failed, so `n + errors` still equals the case count.
+
+    `backend` selects the judge implementation: "native" (the JSON-contract
+    prompt above) or "deepeval" (GEval via `metrics.deepeval_backend`)."""
+    if backend == "deepeval":
+        from .metrics.deepeval_backend import judge_case, make_judge
+        judge = make_judge(judge_model)
+        client = model_id = None
+    else:
+        client, model_id = make_client(judge_model)
+        judge = None
     errors = 0
     for case, result in zip(cases, results):
         if case.scoreable:
@@ -108,7 +117,10 @@ def score_with_judge(cases: list[TestCase], results: list[EvalResult], judge_mod
         scores: list[float] = []
         last_raw = ""
         for draw in range(repeats):
-            verdict, raw = _judge(client, model_id, case, result.output, variant=draw % 2)
+            if judge is not None:
+                verdict, raw = judge_case(judge, case, result.output, variant=draw % 2)
+            else:
+                verdict, raw = _judge(client, model_id, case, result.output, variant=draw % 2)
             last_raw = raw
             if verdict is None:
                 continue
@@ -128,14 +140,15 @@ def score_with_judge(cases: list[TestCase], results: list[EvalResult], judge_mod
 
 
 def run_suite(suite: str, model: str, judge_model: str | None = None,
-              limit: int | None = None, out: Path | None = None) -> list[EvalResult]:
+              limit: int | None = None, out: Path | None = None,
+              judge_backend: str = "native") -> list[EvalResult]:
     cases = load_suite(suite)
     if limit:
         cases = cases[:limit]
 
     results = generate_outputs(cases, model)
     if judge_model:
-        score_with_judge(cases, results, judge_model)
+        score_with_judge(cases, results, judge_model, backend=judge_backend)
     else:
         for case, result in zip(cases, results):
             if case.judge_only:

@@ -484,6 +484,127 @@ strengths is marketing.
 
 ---
 
+## 9. The GEval backend is opt-in, and what that cost
+
+`src/ideval/metrics/deepeval_backend.py` — `--judge-backend deepeval` routes
+judging through deepeval's `GEval` metric instead of the native JSON-contract
+prompt. It is **not** the default, and that is a deliberate choice with a price
+attached.
+
+### Why opt-in rather than the default
+
+The published 36-row table in the README is the artifact of record, and it was
+produced by the native path over a `--repeats 3` run across all six suites that
+cost roughly six hours. Making `GEval` the default would silently change what
+every number in that table means, and the table could not be republished without
+paying that six hours again. So the backend is opt-in: the published table stays
+valid, and the `GEval` path is validated by a bounded parity sample instead. That
+is a real cost — two judge implementations now exist and must agree — and it is
+the honest alternative to quietly invalidating a published artifact.
+
+### `RepoJudge` exists because `GEval` cannot reach these endpoints
+
+`GEval(model=None)` constructs an `OpenAIModel` and raises
+`DeepEvalError: OpenAI API key is not configured`. deepeval's bundled
+`OllamaModel` is not a workaround either: it requires the `ollama` package, which
+is not installed, and it defaults `temperature=0.0`, which `adapters.chat`
+deliberately avoids because temp=0 stalls `qwen2.5` on Ollama 0.34 (§7).
+
+`RepoJudge` is a `DeepEvalBaseLLM` subclass that delegates to `adapters.chat`, so
+the deepeval path inherits provider routing, the no-temperature-pinning policy,
+and the kenari/ollama base_urls rather than reimplementing them. One detail is
+load-bearing: `DeepEvalBaseLLM.__init__` calls `self.load_model()`
+(`deepeval/models/base_model.py:64`), so the client slot must be initialised
+before `super().__init__` runs. The judge is built **once per model** and reused
+across cases — constructing it per case would rebuild the underlying OpenAI client
+32-248 times per run.
+
+### `Rubric(score_range=(0, 1))` is mandatory, not cosmetic
+
+`GEval`'s default score range is `(0, 10)`, and `measure` normalizes the raw
+verdict into `[0, 1]` by `(score - lo) / (hi - lo)`. A judge answering `0.8`
+under the default range is therefore reported as `0.08` — measured on this repo,
+not inferred. Passing `rubric=[Rubric(score_range=(0, 1), expected_outcome=...)]`
+sets `GEval.score_range == (0, 1)`, the span becomes 1, and the verdict passes
+through unchanged. The field is `expected_outcome`, not `expected_output`.
+`test_deepeval_backend_scores_on_the_repo_scale` pins this: it asserts a fixed
+`0.8` payload yields `JudgeVerdict(score=0.8)`, and it fails on the default range.
+
+### Passing `evaluation_steps` halves the call count
+
+Omit `evaluation_steps` and `GEval` first asks the model to *write* the steps
+(`generate_evaluation_steps`) and then asks it to score
+(`generate_evaluation_results`) — two LLM calls per draw. Supplying the steps
+skips the first call entirely. At `--repeats 3` over 248 cases that is the
+difference between roughly 744 and 1488 judge calls.
+
+### Framing has to alternate, or the column means nothing
+
+The native path alternates prompt framing (`runner._judge` variant 0/1) and
+`calibrate.framing_agreement` splits draws on even/odd index (§5). A `GEval`
+backend that used one template for every draw would make `frame` report `1.000`
+unconditionally — a stability number that measures nothing. So
+`deepeval_backend` ships two `GEvalTemplate` subclasses that differ only in block
+order: `FramingTemplateResponseFirst` emits `Evaluation Steps:` before
+`Test Case:`/`Parameters:`, `FramingTemplateRubricFirst` after. The two render
+different strings on identical input, which is what
+`test_deepeval_framing_templates_alternate` asserts.
+
+### What the backend deliberately does not do
+
+- **No `async_mode`.** `GEval` defaults to `async_mode=True`, which routes through
+  `get_or_create_event_loop()` (`deepeval/utils.py:209`) and applies `nest_asyncio`.
+  The repo drives scoring from a plain `for` loop inside a typer command, where
+  that can deadlock. The backend passes `async_mode=False`.
+- **No JSON contract in the criteria.** The suite rubric is interpolated with
+  `contract=""`, because `SCORE_CONTRACT` says "Reply with ONLY a JSON object" and
+  contradicts `GEval`'s own template. Leaving the `{contract}` placeholder
+  unsubstituted raises `KeyError`.
+- **No prompt tuning to force agreement with the native path.** The native path
+  bakes the JSON contract into the prompt and the `GEval` path uses its own
+  template, so the two are not the same prompt. Disagreement between them is a
+  finding to record, not a bug to paper over.
+
+### The measured parity
+
+The two backends were compared on **identical** subject outputs — 16 `factual`
+cases from `kenari/qwen3-8-flash`, judged twice per case by
+`kenari/deepseek-v4-1-flash` under each backend, so 32 draws per side.
+
+| backend | draws | binarized agreement vs the other |
+|---|---:|---:|
+| native | 32 | **15 / 16 = 0.938** |
+| `deepeval` | 32 | **15 / 16 = 0.938** |
+
+Both backends drew a verdict on every draw — no parse failures on either side —
+and they disagree on exactly one case, `fact-002`: the response names Jakarta and
+then notes the move to Nusantara. The native judge scores it `1.0` (the reference
+appears); the `GEval` judge scores it `0.0` (the response "contradicts" it). That
+is a genuine prompt-design difference, not a bug, and it is the kind of case §6
+already flags as the hardest for either path.
+
+**A first attempt at this measurement was wrong and is worth recording.** Running
+the parity check as two `calibrate` invocations compares different text: `calibrate`
+regenerates subject outputs every run and `adapters.chat` pins no temperature
+(§7), so 19 of 31 cases came back with different outputs on the second run. That
+run reported `0.871` agreement and measured subject drift, not backend parity.
+Holding the outputs fixed and varying only the judge is the experiment that
+answers the question; the number above is from that version. It is reproducible
+with `python scripts/parity_sample.py factual 16`.
+
+### Parse failures stay distinguishable
+
+`judge_case` mirrors `runner._judge`'s `tuple[JudgeVerdict | None, str]`, and the
+two `except` arms preserve §3's distinction. `GEval` raises `ValueError` from
+`trimAndLoadJson` on unparseable judge output, which is caught first and returned
+as `raw != ""` — the model answered outside the contract. Any other exception is
+API or infrastructure failure and returns `raw == ""`. So the deepeval path feeds
+the same `judge_raw` field and the same "a failing judge does not inherit the
+previous verdict" guarantee as the native path, with no change to
+`score_with_judge`'s bookkeeping.
+
+---
+
 ## Sources
 
 - Norman, Rivera, Hughes. *Reliability without Validity: A Systematic,
