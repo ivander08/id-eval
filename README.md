@@ -31,14 +31,16 @@ endpoint via `OPENAI_API_KEY`/`OPENAI_BASE_URL`), `openrouter`, `kenari`
 
 ## Suites
 
-| suite | what it measures | ground truth |
-|---|---|---|
-| factual | Indonesian factual QA (hand-curated seeds) | exact match |
-| factual_indommlu | Indonesian multiple-choice, MMLU-style (IndoMMLU) | exact match (choice letter) |
-| factual_tydiqa | Indonesian extractive QA with context (TyDiQA) | exact match |
-| cultural | cultural appropriateness for the Indonesian context | LLM judge (rubric) |
-| register | formality register: baku / santai / jaksel | LLM judge (rubric) |
-| codemix | Indonesian-English code-mixing robustness | LLM judge (rubric) |
+| suite | cases | what it measures | ground truth |
+|---|---:|---|---|
+| factual | 32 | Indonesian factual QA, hand-curated across geography, dates, figures and state | exact match |
+| factual_indommlu | 80 | Indonesian multiple-choice, MMLU-style (IndoMMLU) | exact match (choice letter) |
+| factual_tydiqa | 40 | Indonesian extractive QA with context (TyDiQA) | exact match |
+| cultural | 32 | cultural appropriateness for the Indonesian context | LLM judge (rubric) |
+| register | 32 | formality register: baku / santai / jaksel | LLM judge (rubric) |
+| codemix | 32 | Indonesian-English code-mixing robustness | LLM judge (rubric) |
+
+Every suite carries at least 32 cases, so no calibration row is flagged `low-n`.
 
 ## The calibration study (M2)
 
@@ -50,42 +52,42 @@ the results table here.
 <!-- calibration:start -->
 | judge | vs | subject | suite | n | kappa | pabak | retest | frame | precision | recall | spearman | err | flags |
 |---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | factual | 10 | 0.000 | 0.800 | 0.967 | 0.900 | 0.900 | 1.000 | - | 0 | low-n, prevalence |
-| kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | factual | 10 | 0.000 | 0.800 | 1.000 | 1.000 | 0.900 | 1.000 | 1.000 | 0 | low-n, prevalence |
-| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | factual | 10 | -0.176 | 0.200 | 0.750 | 0.400 | 0.857 | 0.667 | 0.199 | 0 | low-n, unstable, framing-sensitive |
-| kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | factual | 10 | 0.783 | 0.800 | 1.000 | 1.000 | 1.000 | 0.750 | 0.802 | 0 | low-n |
-| kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | factual | 10 | 0.783 | 0.800 | 1.000 | 1.000 | 1.000 | 0.750 | 0.802 | 0 | low-n |
-| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | factual | 10 | 0.348 | 0.400 | 0.867 | 0.700 | 0.667 | 0.500 | 0.529 | 0 | low-n, self-judge, unstable, framing-sensitive |
-| kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | factual_indommlu | 79 | 1.000 | 1.000 | 0.979 | 0.937 | 1.000 | 1.000 | 1.000 | 1 |  |
-| kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | factual_indommlu | 79 | 1.000 | 1.000 | 0.996 | 0.987 | 1.000 | 1.000 | 1.000 | 1 |  |
-| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | factual_indommlu | 79 | 0.097 | 0.038 | 0.771 | 0.500 | 0.794 | 0.466 | 0.126 | 1 | unstable, framing-sensitive |
-| kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | factual_indommlu | 80 | 1.000 | 1.000 | 0.979 | 0.938 | 1.000 | 1.000 | 1.000 | 0 |  |
-| kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | factual_indommlu | 80 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 0 |  |
-| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | factual_indommlu | 80 | 0.070 | 0.225 | 0.762 | 0.400 | 0.308 | 0.381 | 0.095 | 0 | self-judge, unstable, framing-sensitive |
-| kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | factual_tydiqa | 40 | 0.231 | 0.600 | 0.983 | 0.950 | 0.833 | 0.938 | 0.250 | 0 |  |
-| kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | factual_tydiqa | 40 | 0.082 | 0.550 | 0.992 | 0.975 | 0.811 | 0.938 | 0.095 | 0 |  |
-| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | factual_tydiqa | 40 | 0.021 | 0.050 | 0.774 | 0.410 | 0.810 | 0.531 | 0.124 | 0 | unstable, framing-sensitive |
-| kenari/deepseek-v4-1-flash | kenari/glm-5-3-flash | kenari/qwen3-8-flash | cultural | 18 | 0.640 | 0.889 | 0.991 | 0.972 | 0.941 | 1.000 | 0.730 | 0 | low-n, prevalence |
-| kenari/deepseek-v4-1-flash | ollama/qwen2.5:1.5b | kenari/qwen3-8-flash | cultural | 18 | 0.137 | 0.222 | 0.875 | 0.639 | 0.588 | 1.000 | 0.377 | 0 | low-n, unstable, framing-sensitive |
-| kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | kenari/qwen3-8-flash | cultural | 18 | 0.270 | 0.333 | 0.866 | 0.611 | 0.625 | 1.000 | 0.408 | 0 | low-n, unstable, framing-sensitive |
-| kenari/deepseek-v4-1-flash | kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | cultural | 18 | 1.000 | 1.000 | 0.991 | 0.972 | 1.000 | 1.000 | 0.614 | 0 | low-n, prevalence |
-| kenari/deepseek-v4-1-flash | ollama/qwen2.5:1.5b | ollama/qwen2.5:1.5b | cultural | 18 | 0.111 | 0.111 | 0.861 | 0.611 | 1.000 | 0.111 | -0.019 | 0 | low-n, unstable, framing-sensitive, self-judge |
-| kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | ollama/qwen2.5:1.5b | cultural | 18 | 0.111 | 0.111 | 0.870 | 0.639 | 1.000 | 0.111 | -0.069 | 0 | low-n, unstable, framing-sensitive, self-judge |
-| kenari/deepseek-v4-1-flash | kenari/glm-5-3-flash | kenari/qwen3-8-flash | register | 18 | 0.640 | 0.889 | 0.991 | 1.000 | 0.941 | 1.000 | 0.662 | 0 | low-n, prevalence |
-| kenari/deepseek-v4-1-flash | ollama/qwen2.5:1.5b | kenari/qwen3-8-flash | register | 18 | -0.059 | 0.778 | 0.926 | 0.833 | 0.941 | 0.941 | 0.028 | 0 | low-n, prevalence |
-| kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | kenari/qwen3-8-flash | register | 18 | -0.080 | 0.667 | 0.935 | 0.833 | 0.938 | 0.882 | 0.013 | 0 | low-n, prevalence |
-| kenari/deepseek-v4-1-flash | kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | register | 18 | - | 1.000 | 0.991 | 1.000 | - | - | 0.584 | 0 | low-n, prevalence |
-| kenari/deepseek-v4-1-flash | ollama/qwen2.5:1.5b | ollama/qwen2.5:1.5b | register | 18 | -0.000 | -0.333 | 0.903 | 0.750 | - | 0.000 | 0.084 | 0 | low-n, framing-sensitive, self-judge |
-| kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | ollama/qwen2.5:1.5b | register | 18 | -0.000 | -0.333 | 0.912 | 0.750 | - | 0.000 | -0.271 | 0 | low-n, framing-sensitive, self-judge |
-| kenari/deepseek-v4-1-flash | kenari/glm-5-3-flash | kenari/qwen3-8-flash | codemix | 18 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 0.339 | 0 | low-n, prevalence |
-| kenari/deepseek-v4-1-flash | ollama/qwen2.5:1.5b | kenari/qwen3-8-flash | codemix | 18 | -0.059 | 0.778 | 0.986 | 0.972 | 0.941 | 0.941 | 0.475 | 0 | low-n, prevalence |
-| kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | kenari/qwen3-8-flash | codemix | 18 | -0.059 | 0.778 | 0.986 | 0.972 | 0.941 | 0.941 | 0.559 | 0 | low-n, prevalence |
-| kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | factual_tydiqa | 40 | 0.578 | 0.600 | 0.958 | 0.950 | 0.913 | 0.778 | 0.638 | 0 |  |
-| kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | factual_tydiqa | 40 | 0.826 | 0.850 | 0.983 | 0.950 | 0.929 | 0.963 | 0.747 | 0 |  |
-| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | factual_tydiqa | 40 | 0.240 | 0.200 | 0.778 | 0.410 | 0.824 | 0.519 | 0.288 | 0 | self-judge, unstable, framing-sensitive |
-| kenari/deepseek-v4-1-flash | kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | codemix | 18 | 1.000 | 1.000 | 0.991 | 0.972 | 1.000 | 1.000 | 0.422 | 0 | low-n |
-| kenari/deepseek-v4-1-flash | ollama/qwen2.5:1.5b | ollama/qwen2.5:1.5b | codemix | 18 | 0.049 | -0.444 | 0.963 | 0.889 | 1.000 | 0.188 | -0.136 | 0 | low-n, self-judge |
-| kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | ollama/qwen2.5:1.5b | codemix | 18 | 0.049 | -0.444 | 0.972 | 0.917 | 1.000 | 0.188 | -0.359 | 0 | low-n, self-judge |
+| kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | factual | 32 | 0.000 | 0.938 | 0.990 | 1.000 | 0.969 | 1.000 | 1.000 | 0 | prevalence |
+| kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | factual | 32 | 0.000 | 0.938 | 1.000 | 1.000 | 0.969 | 1.000 | 1.000 | 0 | prevalence |
+| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | factual | 32 | 0.090 | 0.250 | 0.790 | 0.581 | 1.000 | 0.613 | 0.236 | 0 | unstable, framing-sensitive |
+| kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | factual | 32 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 0.993 | 0 |  |
+| kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | factual | 32 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 0.993 | 0 |  |
+| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | factual | 32 | 0.584 | 0.625 | 0.802 | 0.562 | 0.727 | 0.727 | 0.539 | 0 | self-judge, unstable, framing-sensitive |
+| kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | factual_indommlu | 72 | 1.000 | 1.000 | 0.981 | 0.944 | 1.000 | 1.000 | 1.000 | 8 |  |
+| kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | factual_indommlu | 72 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 8 |  |
+| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | factual_indommlu | 72 | 0.118 | 0.056 | 0.807 | 0.571 | 0.759 | 0.449 | 0.157 | 8 | unstable, framing-sensitive |
+| kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | factual_indommlu | 80 | 1.000 | 1.000 | 0.975 | 0.925 | 1.000 | 1.000 | 1.000 | 0 |  |
+| kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | factual_indommlu | 80 | 0.968 | 0.975 | 0.996 | 1.000 | 0.955 | 1.000 | 0.983 | 0 |  |
+| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | factual_indommlu | 80 | 0.096 | 0.225 | 0.756 | 0.397 | 0.321 | 0.429 | 0.118 | 0 | self-judge, unstable, framing-sensitive |
+| kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | factual_tydiqa | 40 | -0.094 | 0.650 | 0.975 | 0.925 | 0.917 | 0.892 | -0.095 | 0 | prevalence |
+| kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | factual_tydiqa | 40 | -0.039 | 0.800 | 1.000 | 1.000 | 0.923 | 0.973 | -0.046 | 0 | prevalence |
+| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | factual_tydiqa | 40 | -0.032 | 0.100 | 0.808 | 0.487 | 0.913 | 0.568 | -0.086 | 0 | unstable, framing-sensitive |
+| kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | factual_tydiqa | 40 | 0.452 | 0.500 | 0.967 | 0.925 | 0.778 | 0.840 | 0.455 | 0 |  |
+| kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | factual_tydiqa | 40 | 0.600 | 0.650 | 0.975 | 0.925 | 0.800 | 0.960 | 0.672 | 0 |  |
+| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | factual_tydiqa | 40 | 0.309 | 0.300 | 0.825 | 0.500 | 0.789 | 0.600 | 0.256 | 0 | self-judge, unstable, framing-sensitive |
+| kenari/deepseek-v4-1-flash | kenari/glm-5-3-flash | kenari/qwen3-8-flash | cultural | 32 | 0.079 | 0.500 | 0.948 | 0.875 | 0.920 | 0.793 | 0.553 | 0 |  |
+| kenari/deepseek-v4-1-flash | ollama/qwen2.5:1.5b | kenari/qwen3-8-flash | cultural | 32 | 0.126 | 0.188 | 0.846 | 0.609 | 0.600 | 0.833 | 0.222 | 0 | unstable, framing-sensitive |
+| kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | kenari/qwen3-8-flash | cultural | 32 | 0.235 | 0.312 | 0.867 | 0.672 | 0.621 | 1.000 | 0.240 | 0 | unstable, framing-sensitive |
+| kenari/deepseek-v4-1-flash | kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | cultural | 32 | - | 1.000 | 0.995 | 0.984 | - | - | 0.598 | 0 | prevalence |
+| kenari/deepseek-v4-1-flash | ollama/qwen2.5:1.5b | ollama/qwen2.5:1.5b | cultural | 32 | 0.000 | 0.062 | 0.885 | 0.672 | - | 0.000 | 0.184 | 0 | unstable, framing-sensitive, self-judge |
+| kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | ollama/qwen2.5:1.5b | cultural | 32 | 0.000 | 0.062 | 0.880 | 0.656 | - | 0.000 | -0.004 | 0 | unstable, framing-sensitive, self-judge |
+| kenari/deepseek-v4-1-flash | kenari/glm-5-3-flash | kenari/qwen3-8-flash | register | 32 | 0.739 | 0.812 | 0.953 | 0.953 | 0.920 | 0.958 | 0.745 | 0 |  |
+| kenari/deepseek-v4-1-flash | ollama/qwen2.5:1.5b | kenari/qwen3-8-flash | register | 32 | -0.019 | 0.375 | 0.938 | 0.875 | 0.840 | 0.778 | -0.163 | 0 |  |
+| kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | kenari/qwen3-8-flash | register | 32 | -0.048 | 0.312 | 0.953 | 0.891 | 0.833 | 0.741 | -0.138 | 0 |  |
+| kenari/deepseek-v4-1-flash | kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | register | 32 | - | 1.000 | 0.995 | 1.000 | - | - | 0.685 | 0 | prevalence |
+| kenari/deepseek-v4-1-flash | ollama/qwen2.5:1.5b | ollama/qwen2.5:1.5b | register | 32 | 0.000 | -0.125 | 0.909 | 0.742 | - | 0.000 | -0.011 | 0 | framing-sensitive, self-judge |
+| kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | ollama/qwen2.5:1.5b | register | 32 | 0.000 | -0.125 | 0.903 | 0.742 | - | 0.000 | -0.254 | 0 | framing-sensitive, self-judge |
+| kenari/deepseek-v4-1-flash | kenari/glm-5-3-flash | kenari/qwen3-8-flash | codemix | 32 | 0.652 | 0.938 | 1.000 | 1.000 | 0.968 | 1.000 | 0.590 | 0 | prevalence |
+| kenari/deepseek-v4-1-flash | ollama/qwen2.5:1.5b | kenari/qwen3-8-flash | codemix | 32 | -0.049 | 0.750 | 0.979 | 0.938 | 0.903 | 0.966 | 0.143 | 0 | prevalence |
+| kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | kenari/qwen3-8-flash | codemix | 32 | -0.081 | 0.688 | 0.979 | 0.938 | 0.900 | 0.931 | -0.191 | 0 | prevalence |
+| kenari/deepseek-v4-1-flash | kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | codemix | 32 | 0.652 | 0.938 | 0.990 | 0.969 | 1.000 | 0.500 | 0.711 | 0 | prevalence |
+| kenari/deepseek-v4-1-flash | ollama/qwen2.5:1.5b | ollama/qwen2.5:1.5b | codemix | 32 | 0.007 | -0.750 | 0.971 | 0.922 | 1.000 | 0.034 | -0.008 | 0 | self-judge |
+| kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | ollama/qwen2.5:1.5b | codemix | 32 | 0.014 | -0.688 | 0.971 | 0.922 | 1.000 | 0.069 | -0.169 | 0 | self-judge |
 <!-- calibration:end -->
 
 The `flags` column marks cells that cannot be read at face value: `low-n`

@@ -156,31 +156,37 @@ judge agrees**. From the shipped study:
 
 | judge | subject | suite | n | po | kappa | pabak | flags |
 |---|---|---|---:|---:|---:|---:|---|
-| `kenari/deepseek-v4-1-flash` | `kenari/qwen3-8-flash` | factual | 10 | 0.900 | **0.000** | 0.800 | low-n, prevalence |
-| `kenari/glm-5-3-flash` | `ollama/qwen2.5:1.5b` | factual | 10 | 0.900 | **0.800** | 0.800 | low-n |
+| `kenari/deepseek-v4-1-flash` | `kenari/qwen3-8-flash` | factual | 32 | 0.969 | **0.000** | 0.938 | prevalence |
+| `kenari/glm-5-3-flash` | `kenari/qwen3-8-flash` | factual_tydiqa | 40 | 0.900 | **−0.039** | 0.800 | prevalence |
 
-Both rows are real output. The first is a judge that agreed with ground truth 9
-times out of 10 and is reported as `kappa = 0.000`. A reader given only the kappa
-column would conclude the judge is worthless. It is not — the ground truth is
-skewed and kappa is the wrong instrument for that cell. `pabak = 2·po − 1` carries
-no prevalence term and stays readable there.
+Both rows are real output. The first is a judge that agreed with ground truth 31
+times out of 32 and is reported as `kappa = 0.000`; the second agreed 36 times out
+of 40 and is reported as a *negative* kappa. A reader given only the kappa column
+would conclude both judges are worthless, or worse than worthless. They are not —
+the ground truth is skewed and kappa is the wrong instrument for those cells.
+`pabak = 2·po − 1` carries no prevalence term and stays readable there.
 
 `agreement_terms` is the shared implementation; `cohens_kappa` delegates to it
 rather than duplicating the formula, so the three existing kappa tests
 (`test_kappa_known_value`, `test_kappa_perfect_agreement`,
 `test_kappa_mismatched_lengths`) guard both statistics at once.
 
-`test_pabak_exposes_what_kappa_hides` pins the exact degenerate cell above:
-`kappa == 0.0` and `pabak == 0.8` on the same ten observations.
+`test_pabak_exposes_what_kappa_hides` pins the degenerate cell that motivated the
+statistic: on the original 10-case `factual` artifact, `kappa == 0.0` and
+`pabak == 0.8` on the same ten observations. That cell no longer exists — the
+suite now has 32 cases — but the coefficient still collapses on the 32-case cell
+above, so the test's ten-observation fixture stays as the minimal reproduction.
 
 ### Limits of this choice
 
 PABAK removes prevalence **and** bias, so it reads optimistically — it is not a
 strictly better kappa. The literature's other candidate is Gwet's AC1, which is
-more conservative (on the degenerate cell above, `po = 0.900`, `pe_AC1 = 0.095`,
-`AC1 = 0.890`). We report PABAK and the raw agreement terms rather than a single
-number, on the principle that a reader should be able to recompute either
-coefficient from what we publish. See §8.
+more conservative (on the `factual_tydiqa` cell above, `po = 0.900`,
+`pe_AC1 = 0.095`, `AC1 = 0.890` against `pabak = 0.800`; on the 32-case `factual`
+cell the two agree closely, `AC1 = 0.968` against `pabak = 0.938`). We report
+PABAK and the raw agreement terms rather than a single number, on the principle
+that a reader should be able to recompute either coefficient from what we
+publish. See §8.
 
 ---
 
@@ -200,13 +206,16 @@ The `low-n` threshold is a power argument, not a convention. For a proportion,
 `SE = N^(−1/2)·√(p(1−p))`; at `n = 10, p = 0.6` that is `±0.30` at 95%, and a
 single flipped case swings kappa by `0.20`. At `n = 300` the same flip moves it by
 `0.007`. A table that prints `n = 10` and `kappa = 0.800` with equal visual weight
-to `n = 80` is not reporting uncertainty.
+to `n = 80` is not reporting uncertainty. The shipped study no longer contains a
+row below `n = 32`: the four hand-authored suites were grown to 32 cases each, so
+the flag is carried for future suites rather than fired by this one. The threshold
+was not moved to meet the data.
 
 The `self-judge` flag is the most important flag in the table. Panickssery et al. show
 that LLM evaluators recognise and favour their own generations, with the strength
 of the bias tracking self-recognition capability — so a row where subject and
 judge are the same model is confounded by construction. The shipped study has
-three such rows, all marked, and all three are additionally `unstable` and
+nine such rows, all marked, and five of them are additionally `unstable` and
 `framing-sensitive` — the local judge is both the most biased and the least
 self-consistent row in the table.
 
@@ -217,43 +226,46 @@ flagged `unstable`, and that combination is the one worth reading first.
 
 ### What the repeats measured
 
-Three draws per case, rubric position alternating, across 258 cases per judge:
+Three draws per case, rubric position alternating, across 488 case–subject pairs
+per judge (the six suites' cases crossed with the two subjects, minus the 8
+`factual_indommlu` cells the `kenari` subject errored on):
 
 | judge | `test_retest` | `framing_agreement` | draws disagreeing | per-draw parse failure |
 |---|---:|---:|---:|---:|
-| `kenari/glm-5-3-flash` | 0.994 | 0.983 | 6.6% | 0.0% |
-| `kenari/deepseek-v4-1-flash` | 0.980 | 0.941 | 9.7% | 0.0% |
-| `ollama/qwen2.5:1.5b` | 0.787 | 0.473 | 71.6% | 7.4% |
+| `kenari/glm-5-3-flash` | 0.991 | 0.984 | 32.2% | 0.0% |
+| `kenari/deepseek-v4-1-flash` | 0.978 | 0.949 | 35.9% | 0.0% |
+| `ollama/qwen2.5:1.5b` | 0.823 | 0.555 | 77.0% | 7.4% |
 
 Three things follow, none of which the single-pass table could show.
 
 **Stability separates the judges, and it separates them the right way.** The local
-judge sits `0.19` below both API judges on `test_retest` — far outside the `0.02`
+judge sits `0.16` below both API judges on `test_retest` — far outside the `0.02`
 that would indicate the draws were not independent. That is the falsification
 test for the statistic itself: if a stability number cannot pick out the judge
-that fails 7.4% of draws and flips its verdict on 72% of cases, it is measuring
+that fails 7.4% of draws and flips its verdict on 77% of cases, it is measuring
 nothing. Note that neither API judge failed a single draw, so the `err` column
 alone would have hidden this entirely.
 
 **Agreement and stability are orthogonal here, exactly as Norman et al. claim.**
-`kenari/glm-5-3-flash` on `factual_indommlu / ollama` posts `kappa = 0.915` *and*
-`test_retest = 1.000` with zero flags. `kenari/deepseek-v4-1-flash` on
-`factual_tydiqa / kenari` posts a nearly identical `kappa = 0.155` — but that row
-is stable (`0.991`), while the local judge's `factual / kenari` row has a
-comparable `kappa = 0.138` and is *not* (`0.800`, `unstable`). Two rows a reader
-would previously have ranked identically are now distinguishable.
+`kenari/glm-5-3-flash` on `factual_indommlu / ollama` posts `kappa = 0.968` *and*
+`test_retest = 0.996` with zero flags. `kenari/deepseek-v4-1-flash` on
+`factual_tydiqa / kenari` posts `kappa = −0.094` — but that row is stable
+(`0.975`), while the local judge's `factual / kenari` row has `kappa = 0.090` and
+is *not* (`0.790`, `unstable`). Two rows a reader would previously have ranked
+identically are now distinguishable.
 
 **Framing sensitivity is the sharper instrument, and it catches the boundary
-cases.** The local judge's framing agreement (`0.473`) is worse than its
-test-retest (`0.787`) by a wide margin: it is not just noisy run to run, it
+cases.** The local judge's framing agreement (`0.555`) is worse than its
+test-retest (`0.823`) by a wide margin: it is not just noisy run to run, it
 *systematically* answers differently depending on whether the rubric precedes or
-follows the response. The API judges lose far less (`0.983`, `0.941`). That is the
+follows the response. The API judges lose far less (`0.984`, `0.949`). That is the
 pointwise analogue of position bias showing up as a measurable, judge-specific
 effect rather than a suspicion — see §8.
 
-All three local-judge rows are simultaneously `self-judge`, `unstable`, and
-`framing-sensitive`. The §8 caveat that these rows are "confounded by
-construction" is now quantified rather than asserted.
+Five of the nine `self-judge` rows are simultaneously `unstable` *and*
+`framing-sensitive`; the other four carry `framing-sensitive` alone. The §8
+caveat that these rows are "confounded by construction" is now quantified rather
+than asserted.
 
 ---
 
@@ -307,37 +319,53 @@ hectare aliases (`km²`, `km2`, `square kilometres`, `kilometer persegi`,
 `hektare`, `ha`), so all three gap rows above match. The blast radius was measured
 before the change was accepted, on the artifact that found them: **5 of 80**
 `factual_tydiqa` rows flip, confined to three case ids, and every non-tydiqa
-kappa is unchanged to three decimals. On the re-run artifact the same comparison
-is 18 of 237 rows — the same three case ids, now crossed with three judges and
-two subjects — and still zero movement outside `factual_tydiqa`.
+kappa is unchanged to three decimals. On the re-run artifact the same three case
+ids account for 18 of 1464 pair rows, and the `expected` string now appears in the
+output on all 18 — but only 3 of the 18 still disagree, because the judge also
+credits them. Closing the matcher gap moved those rows out of the disagreement
+set; whether they stay there is now a judge question, not a matcher question.
 
 The three regexes are the minimum set that closes the measured gaps; adding more
 units would widen the false-match surface for no corpus benefit.
 `test_normalize_still_rejects_genuine_misses` is the guard on that widening.
 
-After the fix the disagreement set on that cell collapses to **6 rows over 6
-distinct cases, every one of them a valid paraphrase** the judge credited
-correctly — `Genin` for *"ninja kelas rendah yang hanya menjalankan misi kelas D"*,
-`kecepatan berlari supersonik` for *"berjalan pada kecepatan supersonik"*, and so
-on. Those stay wrong on purpose: fixing them needs a semantic matcher or a
-different ground truth, not a wider regex, and Ho et al. already quantify the
-cost of exact match on extractive QA.
+After the fix the disagreement set on that cell is **7 rows over 7 distinct
+cases**, and the classifier splits it two ways. Three are the paraphrase case:
+the judge credited a correct answer the matcher rejects by construction — `Genin`
+for *"ninja kelas rendah yang hanya menjalankan misi kelas D"*,
+`kecepatan berlari supersonik` for *"berjalan pada kecepatan supersonik"*. Those
+stay wrong on purpose: fixing them needs a semantic matcher or a different ground
+truth, not a wider regex, and Ho et al. already quantify the cost of exact match
+on extractive QA.
+
+The other four are the reverse and are **judge misses, not matcher failures**: the
+`expected` string appears verbatim in the output and the matcher scores it `1.0`,
+while the judge returns `0.0`. `tydiqa-010` is the clearest — the output reads
+*"Lecce terletak di wilayah Puglia (Apulia), bagian selatan **Italia**"* and the
+judge's stated reason is that the response "does not explicitly state Italy as the
+country". A reference-aware judge given `Italia` in its prompt missed `Italia` in
+the response. That is the failure mode §2 exists to prevent, and it is only
+visible because the pair rows carry `expected`, `output` and `reason` inline
+(§6). It is also why this cell's kappa is *negative* while `pabak = 0.650`: the
+matcher is right four more times than the judge is.
 
 **The fix moved agreement up and kappa down, which is not a contradiction.**
-On `factual_tydiqa / kenari/qwen3-8-flash / kenari/deepseek-v4-1-flash`, `po`
-rises `0.775 → 0.821` while kappa falls `0.217 → 0.155`. Correcting the matcher
-raised the ground-truth pass rate to `0.821`, which raises chance agreement to
-`0.788` and deflates kappa — the §4 prevalence effect, now firing harder because
-the ground truth is *more* skewed than before. PABAK, which carries no prevalence
-term, rises `0.550 → 0.641` and tracks the raw agreement. This is the clearest
-instance in the study of why kappa alone is not an agreement report.
+On `factual_tydiqa / kenari/qwen3-8-flash / kenari/deepseek-v4-1-flash`, `po` rose
+`0.775 → 0.825` across the fix and the re-run, while kappa fell `0.217 → −0.094`.
+Correcting the matcher raised the ground-truth pass rate to `0.925`, which raises
+chance agreement to `0.837` and deflates kappa past zero — the §4 prevalence
+effect, now firing harder because the ground truth is *more* skewed than before.
+A kappa of `−0.094` alongside `po = 0.825` is the single least readable row in the
+study, and it is entirely an artifact of prevalence. PABAK, which carries no
+prevalence term, sits at `0.650` and tracks the raw agreement. This is the
+clearest instance in the study of why kappa alone is not an agreement report.
 
 **One consequence worth flagging:** a half-point verdict sits exactly on the
-binarization threshold, where it decides the pass/fail label. In the re-run
-artifact 42 of 774 pair rows carry at least one draw at exactly `0.5`, and 16 rows
-publish `judge_score == 0.5`. That is a real source of instability in the kappa
-column. It is no longer unmeasured — `test_retest` counts a draw as a pass at
-`>= 0.5`, so a judge that lands on the boundary run to run shows up as
+binarization threshold, where it decides the pass/fail label. In the shipped
+artifact 134 of 1464 pair rows carry at least one draw at exactly `0.5`, and 57
+rows publish `judge_score == 0.5`. That is a real source of instability in the
+kappa column. It is no longer unmeasured — `test_retest` counts a draw as a pass
+at `>= 0.5`, so a judge that lands on the boundary run to run shows up as
 instability — but the threshold itself remains a convention, not a finding.
 
 ---
@@ -384,7 +412,7 @@ Recording this is the point of the document — a design note that only lists
 strengths is marketing.
 
 1. **The rubric suites have no numeric ground truth.** `cultural`, `register` and
-   `codemix` — 54 cases — declare `ground_truth_type: rubric` and carry no
+   `codemix` — 96 cases — declare `ground_truth_type: rubric` and carry no
    `expected` value, so there is nothing to score a judge against. They are now
    calibrated on a different axis: **inter-judge agreement**, one row per judge
    pair, reported with the same kappa/PABAK/stability columns as the factual rows
@@ -393,16 +421,24 @@ strengths is marketing.
    says nothing about whether either is correct, and the multilingual-judge
    literature is unambiguous that reliability is language-conditional
    (Doğruöz et al.; Fu & Liu report mean Fleiss' κ ≈ 0.3 across 25 languages).
-   Authoring `expected` values for these 54 cases is the only way to close it,
+   Authoring `expected` values for these 96 cases is the only way to close it,
    and the labels would themselves be a single rater's judgment — the exact
    reliability problem being measured.
 
    The inter-judge result is worth stating plainly. Across the 18 rubric pair
-   rows, the two API judges agree with each other at a mean `kappa = 0.856`
-   (`test_retest = 0.992`, `framing_agreement = 0.986`), while any pair
-   containing the local judge sits at a mean `kappa = 0.039` (`0.921`, `0.785`).
-   Four pairs are `unstable` and six are `framing-sensitive` — every one of them
-   a pair with the local judge.
+   rows, the two API judges agree with each other at a mean `kappa = 0.531` over
+   the four rows where kappa is defined (`test_retest = 0.980`,
+   `framing_agreement = 0.964`; the other two rows have `pe = 1.0`, where kappa is
+   undefined rather than zero), while any pair containing the local judge sits at
+   a mean `kappa = 0.015` (`0.924`, `0.798`). Four pairs are `unstable` and six
+   are `framing-sensitive` — every one of them a pair with the local judge.
+
+   Four of those 18 pairs are also `prevalence`, which is the honest reading of
+   the rubric suites' ceiling. On `codemix / kenari` the two API judges pass 31
+   and 30 of 32 cases, so `pe = 0.94` and their `kappa = 0.652` understates an
+   agreement of `0.969`; on `cultural / ollama` and `register / ollama` every API
+   judge passes 0 of 32, so `pe = 1.0` and kappa is undefined rather than zero.
+   Those suites need *harder* cases, not more of them.
 
 2. **Pairwise position bias is unmeasured.** `_judge` presents a single response
    against a rubric, so pairwise position bias does not apply directly. The
@@ -422,15 +458,29 @@ strengths is marketing.
 
 4. **The exact-match normalizer still cannot see paraphrase.** The three measured
    gaps (unit aliases, unit language, superscript exponents) are fixed in
-   `_normalize`. What remains is the dominant cause: with those gaps closed, the
-   disagreement set on the worst cell is **6 rows over 6 distinct cases, every one
-   a valid paraphrase** that exact match rejects by construction. `_normalize` is
-   SQuAD-style plus unit canonicalization; it does not canonicalize scripts or
-   Indonesian affixes, and closing the paraphrase gap needs a semantic matcher,
-   not a wider regex.
+   `_normalize`. What remains splits two ways. Three of the seven disagreements on
+   the worst cell are the paraphrase case — a valid answer exact match rejects by
+   construction. The other four are the opposite, and are the more useful finding:
+   the `expected` string appears verbatim in the output, the matcher scores it
+   `1.0`, and the judge returns `0.0`. `_normalize` is SQuAD-style plus unit
+   canonicalization; it does not canonicalize scripts or Indonesian affixes, and
+   closing the paraphrase gap needs a semantic matcher, not a wider regex. Closing
+   the judge-miss gap needs nothing from the matcher at all — it is a §2 failure,
+   visible only because the pair rows carry `expected`, `output` and `reason`
+   inline.
 
-5. **`low-n` cells are published anyway.** Flagging a 10-case cell is not the same
-   as fixing it. The correct fix is more cases, which is the M1 line item.
+5. **`prevalence` cells are still published.** `low-n` is gone: the four
+   hand-authored suites were grown to 32 cases each, so all 36 rows now carry
+   `n >= 32` and no row is flagged for sample size. What replaces it as the
+   dominant caveat is `prevalence` — 10 of 36 rows. That is the honest limit of
+   what growing a suite can fix. The `factual` suite is the clearest case: the 22
+   new cases were written to be *harder* — multi-word and numeric answers rather
+   than one-word capitals — and they are harder for the small local subject
+   (`5/22` passed, against `6/10` on the old cases), but the API subject answers
+   all 22 correctly, so the suite pass rate rises `0.900 → 0.969` and kappa stays
+   pinned at `0.000` even though `po` improved `0.900 → 0.969`. `low-n` was a
+   coverage problem and is fixed; `prevalence` is a difficulty problem, and
+   difficulty is a property of the *subject–item* pair, not of the item alone.
 
 ---
 
