@@ -4,7 +4,7 @@ Indonesian LLM evaluation toolkit: curated suites, calibrated LLM-as-judge, CI-r
 
 ## Status
 
-Work in progress. Milestones:
+All five milestones complete:
 
 - [x] M0 — scaffold, CLI, schema, suites seeds, tests
 - [x] M1 — deepeval metric classes + runner hardening + ~200 curated cases
