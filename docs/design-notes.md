@@ -576,12 +576,18 @@ cases from `kenari/qwen3-8-flash`, judged twice per case by
 | native | 32 | **15 / 16 = 0.938** |
 | `deepeval` | 32 | **15 / 16 = 0.938** |
 
-Both backends drew a verdict on every draw — no parse failures on either side —
-and they disagree on exactly one case, `fact-002`: the response names Jakarta and
-then notes the move to Nusantara. The native judge scores it `1.0` (the reference
-appears); the `GEval` judge scores it `0.0` (the response "contradicts" it). That
-is a genuine prompt-design difference, not a bug, and it is the kind of case §6
-already flags as the hardest for either path.
+Both backends returned a verdict on every draw — no parse failures on either side.
+
+The two backends disagree on one case, `fact-002`, where the response names Jakarta
+and then notes the planned move to Nusantara: the native judge scored it `1.0` and
+the `GEval` judge `0.0`. **That disagreement did not reproduce.** Re-judging the
+same case and the same output with both backends returned `1.0` on both, with
+reasons that cite the same partial-credit rule — the native judge calling the
+extra detail "accurate context [that] does not contradict the answer", the `GEval`
+judge calling it "the partial credit condition for correct extra detail". So the
+one mismatch is draw-to-draw sampling variance from the unpinned temperature (§7),
+not a prompt-design difference, and it is a useful reminder that a single
+disagreement in a 16-case sample is inside the noise the study already documents.
 
 **A first attempt at this measurement was wrong and is worth recording.** Running
 the parity check as two `calibrate` invocations compares different text: `calibrate`

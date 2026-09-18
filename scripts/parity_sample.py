@@ -41,13 +41,16 @@ for case in cases:
     if not out:
         continue
     draws = {}
+    reasons = {}
     for name, fn in (("native", lambda v: _judge(client, model_id, case, out, variant=v)),
                      ("deepeval", lambda v: judge_case(repo_judge, case, out, variant=v))):
         verdicts = [fn(d % 2) for d in range(REPEATS)]
-        scores = [s for s, _ in [(v.score if v else None, r) for v, r in verdicts] if s is not None]
+        scores = [v.score for v, _ in verdicts if v is not None]
         draws[name] = scores
+        reasons[name] = next((v.reason for v, _ in verdicts if v is not None), "")
     rows.append({"suite": SUITE, "case_id": case.id, "expected": case.expected,
-                 "output": out, "native": draws["native"], "deepeval": draws["deepeval"]})
+                 "output": out, "native": draws["native"], "deepeval": draws["deepeval"],
+                 "native_reason": reasons["native"], "deepeval_reason": reasons["deepeval"]})
 
 paired = [r for r in rows if r["native"] and r["deepeval"]]
 agree = sum(1 for r in paired if (r["native"][0] >= 0.5) == (r["deepeval"][0] >= 0.5))
@@ -60,6 +63,9 @@ for r in paired:
     mark = " " if (a >= 0.5) == (b >= 0.5) else "X"
     print(f" {mark} {r['case_id']:10s} native={a:<5} deepeval={b:<5} "
           f"expected={str(r['expected'])[:18]:18s} out={(r['output'] or '')[:38]!r}")
+    if mark == "X":
+        print(f"     native reason:   {r['native_reason'][:200]!r}")
+        print(f"     deepeval reason: {r['deepeval_reason'][:200]!r}")
 
 Path(f"results_parity_{SUITE}.json").write_text(
     json.dumps({"suite": SUITE, "subject": SUBJECT, "judge": JUDGE, "rows": rows},
