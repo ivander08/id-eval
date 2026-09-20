@@ -11,3 +11,6 @@ build/
 results/
 results*.json
 data/
+# rendered from results_calibration.json + the labels by scripts/label_review.py emit;
+# the curated pass it feeds lives in annotations/review_decisions.jsonl
+annotations/review_worksheet.md

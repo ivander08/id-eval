@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from ideval.calibrate import (agreement_terms, build_inter_judge_report, build_report,
@@ -369,6 +371,166 @@ def test_deepeval_framing_templates_alternate():
         assert "Evaluation Steps:" in rendered and "Test Case:" in rendered
     assert response_first.index("Evaluation Steps:") < response_first.index("Test Case:")
     assert rubric_first.index("Test Case:") < rubric_first.index("Evaluation Steps:")
+
+
+def _label_review():
+    """scripts/ is not a package; load the review tool by path."""
+    import importlib.util
+    path = Path(__file__).resolve().parents[1] / "scripts" / "label_review.py"
+    spec = importlib.util.spec_from_file_location("label_review", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+HEADER = "# Ground-truth labels for the rubric suites.\n# Rater: a single rater.\n\n"
+
+
+def _write_labels(tmp_path, rows):
+    import json as _json
+    path = tmp_path / "labels.jsonl"
+    body = "".join(_json.dumps(r, ensure_ascii=False) + "\n" for r in rows)
+    path.write_text(HEADER + body, encoding="utf-8", newline="")
+    return path
+
+
+def _row(suite, case_id, subject, label, note="draft rationale"):
+    return {"suite": suite, "case_id": case_id, "subject": subject,
+            "label": label, "rater": "draft:assistant", "note": note}
+
+
+def _read_rows(path):
+    import json as _json
+    return [_json.loads(l) for l in path.read_text(encoding="utf-8").splitlines()
+            if l.strip() and not l.startswith("#")]
+
+
+def _decisions(tmp_path, rows):
+    import json as _json
+    path = tmp_path / "decisions.jsonl"
+    path.write_text("".join(_json.dumps(r, ensure_ascii=False) + "\n" for r in rows),
+                    encoding="utf-8", newline="")
+    return path
+
+
+def test_label_review_apply_edits_one_row_and_leaves_the_rest(tmp_path):
+    review = _label_review()
+    cid = load_suite("cultural")[0].id
+    labels = _write_labels(tmp_path, [
+        _row("cultural", cid, "a/model", 1.0, "looks right"),
+        _row("cultural", cid, "b/model", 1.0),
+    ])
+    decisions = _decisions(tmp_path, [
+        {"suite": "cultural", "case_id": cid, "subject": "b/model", "label": 0.0,
+         "note": "invents the custom"},
+    ])
+    assert review.apply(labels, decisions, reviewer="review:ivander") == 0
+
+    text = labels.read_text(encoding="utf-8")
+    assert text.startswith(HEADER)  # provenance header survives byte for byte
+    by_subject = {r["subject"]: r for r in _read_rows(labels)}
+    edited, untouched = by_subject["b/model"], by_subject["a/model"]
+    assert (edited["label"], edited["rater"]) == (0.0, "review:ivander")
+    assert edited["note"] == "invents the custom"
+    assert untouched["label"] == 1.0 and untouched["rater"] == "draft:assistant"
+    assert untouched["note"] == "looks right"
+
+
+def test_label_review_apply_rejects_a_label_off_the_scale(tmp_path):
+    review = _label_review()
+    cid = load_suite("cultural")[0].id
+    labels = _write_labels(tmp_path, [_row("cultural", cid, "a/model", 1.0)])
+    decisions = _decisions(tmp_path, [
+        {"suite": "cultural", "case_id": cid, "subject": "a/model", "label": 0.7},
+    ])
+    with pytest.raises(ValueError, match="not one of"):
+        review.apply(labels, decisions)
+    assert _read_rows(labels)[0]["rater"] == "draft:assistant"
+
+
+def test_label_review_apply_rejects_a_duplicate_decision(tmp_path):
+    review = _label_review()
+    cid = load_suite("cultural")[0].id
+    labels = _write_labels(tmp_path, [_row("cultural", cid, "a/model", 1.0)])
+    decisions = _decisions(tmp_path, [
+        {"suite": "cultural", "case_id": cid, "subject": "a/model", "label": 1.0},
+        {"suite": "cultural", "case_id": cid, "subject": "a/model", "label": 0.0},
+    ])
+    with pytest.raises(ValueError, match="duplicate decision"):
+        review.apply(labels, decisions)
+
+
+def test_label_review_apply_all_agree_confirms_every_row(tmp_path):
+    review = _label_review()
+    cases = load_suite("cultural")[:2]
+    rows = [_row("cultural", c.id, subj, 0.5)
+            for c in cases for subj in ("a/model", "b/model")]
+    labels = _write_labels(tmp_path, rows)
+    assert review.apply(labels, None, reviewer="review:ivander", all_agree=True) == 0
+
+    written = _read_rows(labels)
+    assert len(written) == 4
+    assert {r["rater"] for r in written} == {"review:ivander"}
+    # a confirmation keeps the draft's rationale, because the reviewer affirmed it
+    assert {r["note"] for r in written} == {"draft rationale"}
+    assert {r["label"] for r in written} == {0.5}
+
+
+def test_label_review_apply_all_agree_refuses_a_decisions_file(tmp_path):
+    review = _label_review()
+    labels = _write_labels(tmp_path, [_row("cultural", "cult-001", "a/model", 1.0)])
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        review.apply(labels, _decisions(tmp_path, []), all_agree=True)
+
+
+def test_label_review_apply_confirmation_does_not_rewrite_the_note(tmp_path):
+    # a decision at the draft label with note "confirmed" is an affirmation, not an
+    # edit: replacing the rationale would erase the reason the reviewer agreed with
+    review = _label_review()
+    cid = load_suite("cultural")[0].id
+    labels = _write_labels(tmp_path, [_row("cultural", cid, "a/model", 1.0, "the real reason")])
+    decisions = _decisions(tmp_path, [
+        {"suite": "cultural", "case_id": cid, "subject": "a/model", "label": 1.0,
+         "note": "confirmed"},
+    ])
+    review.apply(labels, decisions)
+    row = _read_rows(labels)[0]
+    assert row["note"] == "the real reason" and row["rater"] == "review:ivander"
+
+
+def test_label_review_apply_rejects_a_case_that_is_not_in_the_suite(tmp_path):
+    review = _label_review()
+    labels = _write_labels(tmp_path, [_row("cultural", "cult-001", "a/model", 1.0)])
+    decisions = _decisions(tmp_path, [
+        {"suite": "cultural", "case_id": "cult-999", "subject": "a/model", "label": 1.0},
+    ])
+    with pytest.raises(ValueError, match="no row in the label file"):
+        review.apply(labels, decisions)
+
+
+def test_label_review_emit_writes_a_section_per_unit_and_marks_truncation(tmp_path):
+    import json as _json
+    review = _label_review()
+    cases = load_suite("cultural")[:2]
+    rows = [_row("cultural", c.id, subj, 1.0)
+            for c in cases for subj in ("a/model", "b/model")]
+    labels = _write_labels(tmp_path, rows)
+    pairs = [{"suite": r["suite"], "case_id": r["case_id"], "subject": r["subject"],
+              "output": "x" * 500 if r["subject"] == "b/model" else "short"}
+             for r in rows]
+    # a subject failure: a labelled unit the artifact has no stored output for
+    pairs = [p for p in pairs if not (p["case_id"] == cases[1].id and p["subject"] == "b/model")]
+    artifact = tmp_path / "artifact.json"
+    artifact.write_text(_json.dumps({"pairs": pairs}), encoding="utf-8")
+    out = tmp_path / "worksheet.md"
+
+    assert review.emit(artifact, labels, out, width=100) == 0
+
+    text = out.read_text(encoding="utf-8")
+    assert text.count("### cultural /") == 3  # 4 units, one skipped for having no output
+    assert text.count("… [TRUNCATED at 100 of 500 chars]") == 1
+    assert cases[0].input.split("\n")[0][:20] in text  # the prompt is rendered
+    assert text.count("**your label:** ______") == 3
 
 
 def test_update_readme_table_replaces_only_marked_region(tmp_path):
