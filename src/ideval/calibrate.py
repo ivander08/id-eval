@@ -6,7 +6,14 @@ M0 ships the statistics (Cohen's kappa, Spearman) + report assembly; the
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from .schema import EvalResult, TestCase
 
 
 LOW_N = 30            # below this, kappa moves ~0.1 per flipped case
@@ -30,6 +37,14 @@ class CalibrationReport(BaseModel):
     precision: float | None = None  # judge says "pass" -> how often ground truth agrees
     recall: float | None = None     # ground-truth passes -> how often judge catches them
     errors: int = 0                 # cases the judge failed to score (report is not silently complete)
+    canaries: int = 0               # adversarial cases this row's judge(s) scored
+    canary_failures: int = 0        # of those, how many the judge passed (score >= threshold)
+    draws: int = 0                  # judge draws attempted (repeats x cases the subject answered)
+    draw_failures: int = 0          # draws that produced no parseable verdict
+    kappa_t03: float | None = None  # kappa binarized at 0.3
+    kappa_t07: float | None = None  # kappa binarized at 0.7
+    # kappa_t03/kappa_t07 exist to show whether a row's agreement is an artifact of
+    # the 0.5 binarization convention that `kappa` uses.
     flags: list[str] = Field(default_factory=list)  # low-n / prevalence / self-judge
 
 
@@ -90,6 +105,23 @@ def framing_agreement(draws: list[list[float]], threshold: float = 0.5) -> float
     return sum(pairs) / len(pairs)
 
 
+def pairwise_flip_rate(orders: list[tuple[str, str]]) -> float | None:
+    """Share of items whose winner changed when the two responses were swapped.
+    0.0 = the judge is order-invariant; 1.0 = it always follows position. `orders`
+    holds (winner_forward, winner_backward) with "A"/"B" already resolved to the
+    same underlying response, so a position-invariant judge yields equal values.
+    None when empty.
+
+    The caller resolves "A"/"B" to the underlying response identity before calling
+    this, so the function compares content, not position: on the backward draw a
+    verdict of "A" names the response that appeared as B on the forward draw, and
+    resolving it to that response is what makes an equal pair mean "same answer
+    chosen twice" rather than "letter A chosen twice"."""
+    if not orders:
+        return None
+    return sum(a != b for a, b in orders) / len(orders)
+
+
 def precision_recall(a: list[float], b: list[float], threshold: float = 0.5) -> tuple[float | None, float | None]:
     """Precision/recall of judge passes (a) vs ground-truth passes (b)."""
     if len(a) != len(b) or not a:
@@ -139,7 +171,8 @@ def pair_scores(judge_scores: list[float | None],
 
 
 def _flags(n: int, pe: float | None, subject: str, judge: str,
-           stability: float | None = None, framing: float | None = None) -> list[str]:
+           stability: float | None = None, framing: float | None = None,
+           canary_failures: int = 0, kappas: list[float | None] | None = None) -> list[str]:
     flags = []
     if n < LOW_N:
         flags.append("low-n")
@@ -151,22 +184,64 @@ def _flags(n: int, pe: float | None, subject: str, judge: str,
         flags.append("unstable")
     if framing is not None and framing < LOW_FRAMING:
         flags.append("framing-sensitive")
+    if canary_failures > 0:
+        flags.append("canary-fail")
+    if kappas is not None:
+        # a sign flip across thresholds is a qualitative change in what the row
+        # claims, not a tuned tolerance; 0.0 counts as neither sign
+        ks = [k for k in kappas if k is not None]
+        if any(k < 0 for k in ks) and any(k > 0 for k in ks):
+            flags.append("threshold-sensitive")
     return flags
+
+
+def canary_outcomes(cases: list[TestCase], results: list[EvalResult],
+                    threshold: float = 0.5) -> dict[str, bool]:
+    """{case_id: passed} for every adversarial case the judge scored. A case is a
+    canary when its `reference_note` starts with "ADVERSARIAL"; passing it means
+    the judge scored it at or above the threshold, which is the failure the canary
+    exists to catch. Cases with no verdict are omitted, not counted as passed."""
+    outcomes: dict[str, bool] = {}
+    for case, r in zip(cases, results):
+        if not (case.reference_note or "").startswith("ADVERSARIAL"):
+            continue
+        verdict = r.judge_score if case.scoreable else r.score
+        if verdict is None:
+            continue
+        outcomes[case.id] = verdict >= threshold
+    return outcomes
+
+
+def draw_stats(results: list[EvalResult], repeats: int) -> tuple[int, int]:
+    """(draws attempted, draws that produced no verdict). Cases the subject model
+    failed are excluded: the judge never saw them, so counting them would report a
+    subject failure as a judge failure."""
+    attempted = [r for r in results if not r.error]
+    total = repeats * len(attempted)
+    ok = sum(len(r.judge_repeats) for r in attempted)
+    return total, total - ok
 
 
 def build_report(judge: str, suite: str, judge_scores: list[float | None],
                  gt_scores: list[float | None], errors: int = 0,
-                 subject: str = "", draws: list[list[float]] | None = None) -> CalibrationReport:
+                 subject: str = "", draws: list[list[float]] | None = None,
+                 draws_attempted: int = 0, draw_failures: int = 0,
+                 canaries: int = 0, canary_failures: int = 0) -> CalibrationReport:
     """Pair, then compute agreement / kappa / PABAK / precision / recall / spearman,
-    plus test-retest and framing agreement when repeats were collected."""
+    plus test-retest and framing agreement when repeats were collected.
+
+    `kappa` is binarized at 0.5; `kappa_t03`/`kappa_t07` repeat the same pairing at
+    0.3 and 0.7 so a row can show whether its agreement is an artifact of that
+    convention. All three come from one sweep so they cannot drift apart."""
     j, g = pair_scores(judge_scores, gt_scores)
     precision, recall = precision_recall(j, g)
     po, pe = agreement_terms(j, g)
     stability = test_retest(draws or [])
     framing = framing_agreement(draws or [])
+    kappas = [cohens_kappa(j, g, t) for t in (0.3, 0.5, 0.7)]
     return CalibrationReport(
         judge=judge, suite=suite, subject=subject, n=len(j),
-        kappa=cohens_kappa(j, g),
+        kappa=kappas[1],
         agreement=po,
         pabak=pabak(j, g),
         test_retest=stability,
@@ -174,7 +249,10 @@ def build_report(judge: str, suite: str, judge_scores: list[float | None],
         spearman=spearman(j, g),
         precision=precision, recall=recall,
         errors=errors,
-        flags=_flags(len(j), pe, subject, judge, stability, framing),
+        canaries=canaries, canary_failures=canary_failures,
+        draws=draws_attempted, draw_failures=draw_failures,
+        kappa_t03=kappas[0], kappa_t07=kappas[2],
+        flags=_flags(len(j), pe, subject, judge, stability, framing, canary_failures, kappas),
     )
 
 
@@ -182,7 +260,9 @@ def build_inter_judge_report(judge: str, judge_b: str, suite: str,
                              scores_a: list[float | None], scores_b: list[float | None],
                              errors: int = 0, subject: str = "",
                              draws_a: list[list[float]] | None = None,
-                             draws_b: list[list[float]] | None = None) -> CalibrationReport:
+                             draws_b: list[list[float]] | None = None,
+                             draws_attempted: int = 0, draw_failures: int = 0,
+                             canaries: int = 0, canary_failures: int = 0) -> CalibrationReport:
     """Agreement between two judges over the same subject outputs. `judge` is the
     prediction side, `judge_b` the reference side, so precision/recall read as
     "how often judge's passes are also judge_b's passes" and vice versa.
@@ -190,7 +270,14 @@ def build_inter_judge_report(judge: str, judge_b: str, suite: str,
     `errors` is the number of cases where at least one of the two judges produced
     no verdict, so n + errors equals the case count for the pair. Stability
     columns are the mean of the two judges' own values; each judge's raw draws
-    stay on the pair rows, so either can be recomputed."""
+    stay on the pair rows, so either can be recomputed.
+
+    `draws_attempted`/`draw_failures` are summed across both judges: the pair row
+    costs two judges' worth of draws. `canaries`/`canary_failures` are the union
+    of the two judges' outcomes, because the row's question is "did either judge
+    pass an adversarial case" — a canary passed by either is a failure of the
+    pair. `kappa` is binarized at 0.5, with `kappa_t03`/`kappa_t07` from the same
+    sweep at 0.3 and 0.7."""
     j, g = pair_scores(scores_a, scores_b)
     precision, recall = precision_recall(j, g)
     po, pe = agreement_terms(j, g)
@@ -198,12 +285,13 @@ def build_inter_judge_report(judge: str, judge_b: str, suite: str,
     framings = [f for f in (framing_agreement(draws_a or []), framing_agreement(draws_b or [])) if f is not None]
     stability = sum(stabilities) / len(stabilities) if stabilities else None
     framing = sum(framings) / len(framings) if framings else None
-    flags = _flags(len(j), pe, "", judge, stability, framing)
+    kappas = [cohens_kappa(j, g, t) for t in (0.3, 0.5, 0.7)]
+    flags = _flags(len(j), pe, "", judge, stability, framing, canary_failures, kappas)
     if subject and subject in (judge, judge_b):
         flags.append("self-judge")
     return CalibrationReport(
         judge=judge, judge_b=judge_b, suite=suite, subject=subject, n=len(j),
-        kappa=cohens_kappa(j, g),
+        kappa=kappas[1],
         agreement=po,
         pabak=pabak(j, g),
         test_retest=stability,
@@ -211,19 +299,52 @@ def build_inter_judge_report(judge: str, judge_b: str, suite: str,
         spearman=spearman(j, g),
         precision=precision, recall=recall,
         errors=errors,
+        canaries=canaries, canary_failures=canary_failures,
+        draws=draws_attempted, draw_failures=draw_failures,
+        kappa_t03=kappas[0], kappa_t07=kappas[2],
         flags=flags,
     )
 
 
+def load_labels(path: Path) -> dict[tuple[str, str, str], float]:
+    """(suite, case_id, subject) -> ground-truth label for the rubric suites.
+
+    Blank lines and lines starting with '#' are skipped (the file carries a
+    provenance header). A duplicate key is an error, not a silent overwrite: two
+    rows for the same response are two claims about one label, and taking the last
+    would hide the disagreement.
+
+    The unit is the response, not the case: two subjects answer the same prompt
+    differently, so a per-case label would assert identical quality for different
+    text. A case with no label for this subject contributes `None` downstream and
+    `pair_scores` drops it, so a partial annotation file shrinks `n` rather than
+    inventing ground truth."""
+    labels: dict[tuple[str, str, str], float] = {}
+    for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        row = json.loads(line)
+        key = (row["suite"], row["case_id"], row["subject"])
+        if key in labels:
+            raise ValueError(f"{path}:{i}: duplicate label for {key}")
+        labels[key] = float(row["label"])
+    return labels
+
+
 def run_calibration(suites: list[str], subjects: list[str], judges: list[str],
                     limit: int | None = None, repeats: int = 1,
-                    judge_backend: str = "native") -> tuple[list[CalibrationReport], list[dict]]:
+                    judge_backend: str = "native",
+                    labels: dict[tuple[str, str, str], float] | None = None
+                    ) -> tuple[list[CalibrationReport], list[dict]]:
     """Subject outputs generated once per (suite, subject), then every judge scores
     the same outputs. Returns (reports, pair rows).
 
     A suite whose cases are all rubric has no numeric ground truth, so it yields
     one report per judge pair (inter-judge agreement) instead of one report per
-    judge. A rubric suite graded by fewer than two judges yields no rows, since
+    judge — unless `labels` supplies ground truth for this subject, in which case
+    the rubric suite takes the judge-vs-truth path against those labels. A rubric
+    suite graded by fewer than two judges and without labels yields no rows, since
     there is nothing to compare; that is warned about, not raised."""
     from . import runner, schema  # deferred: keeps list-suites free of the runner/rich chain
 
@@ -235,12 +356,19 @@ def run_calibration(suites: list[str], subjects: list[str], judges: list[str],
             cases = cases[:limit]
         rubric = not any(c.scoreable for c in cases)
         for subject in subjects:
+            # labels are the ground truth for a rubric suite, never r.score:
+            # `score_with_judge` writes the judge's own verdict into r.score on a
+            # non-scoreable case, so reading gt from there would score the judge
+            # as perfect agreement with itself.
+            labeled = rubric and bool(labels) and any((suite, c.id, subject) in labels for c in cases)
             results = runner.generate_outputs(cases, subject)
             outputs = [r.output for r in results]
             verdicts: dict[str, list[float | None]] = {}
             draw_vectors: dict[str, list[list[float]]] = {}
             reasons: dict[str, list[str | None]] = {}
             judge_errors: dict[str, int] = {}
+            canary_by_judge: dict[str, dict[str, bool]] = {}
+            draws_by_judge: dict[str, tuple[int, int]] = {}
             for judge in judges:
                 judge_errors[judge] = runner.score_with_judge(cases, results, judge,
                                                               repeats=repeats,
@@ -251,11 +379,20 @@ def run_calibration(suites: list[str], subjects: list[str], judges: list[str],
                                    for c, r in zip(cases, results)]
                 draw_vectors[judge] = [r.judge_repeats for r in results]
                 reasons[judge] = [r.judge_reason for r in results]
-                if not rubric:
+                # both helpers read `results` before the next judge resets it in place
+                canary_by_judge[judge] = canary_outcomes(cases, results)
+                draws_by_judge[judge] = draw_stats(results, repeats)
+                if not rubric or labeled:
+                    attempts, failures = draws_by_judge[judge]
+                    canary = canary_by_judge[judge]
+                    gt_scores = ([labels.get((suite, c.id, subject)) for c in cases] if labeled
+                                 else [r.score for r in results])
                     reports.append(build_report(judge, suite, verdicts[judge],
-                                                [r.score for r in results],
+                                                gt_scores,
                                                 judge_errors[judge], subject,
-                                                draw_vectors[judge]))
+                                                draw_vectors[judge],
+                                                attempts, failures,
+                                                len(canary), sum(canary.values())))
             for judge, js, reason, draws in zip(
                     judges, [verdicts[j] for j in judges],
                     [reasons[j] for j in judges], [draw_vectors[j] for j in judges]):
@@ -263,19 +400,26 @@ def run_calibration(suites: list[str], subjects: list[str], judges: list[str],
                     {"suite": suite, "subject": subject, "judge": judge,
                      "case_id": case.id, "gt": gt if case.scoreable else None,
                      "judge_score": js_, "judge_scores": ds,
-                     "expected": case.expected, "output": out, "reason": reason_}
+                     "expected": case.expected,
+                     "canary": (case.reference_note or "").startswith("ADVERSARIAL"),
+                     "output": out, "reason": reason_}
                     for case, js_, gt, reason_, out, ds in zip(
                         cases, js, [r.score for r in results], reason, outputs, draws)
                     if js_ is not None
                 )
-            if rubric:
+            if rubric and not labeled:
                 for i, a in enumerate(judges):
                     for b in judges[i + 1:]:
                         errors = sum(1 for x, y in zip(verdicts[a], verdicts[b])
                                      if x is None or y is None)
+                        merged = {k: canary_by_judge[a].get(k, False) or canary_by_judge[b].get(k, False)
+                                  for k in canary_by_judge[a] | canary_by_judge[b]}
+                        attempts = draws_by_judge[a][0] + draws_by_judge[b][0]
+                        failures = draws_by_judge[a][1] + draws_by_judge[b][1]
                         reports.append(build_inter_judge_report(
                             a, b, suite, verdicts[a], verdicts[b], errors, subject,
-                            draw_vectors[a], draw_vectors[b]))
+                            draw_vectors[a], draw_vectors[b],
+                            attempts, failures, len(merged), sum(merged.values())))
                 if len(judges) < 2:
                     from . import reporting
                     reporting.console.print(

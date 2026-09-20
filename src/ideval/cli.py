@@ -54,23 +54,28 @@ def calibrate(
     limit: int | None = typer.Option(None, "--limit"),
     repeats: int = typer.Option(1, "--repeats", help="judge draws per case; >1 enables test-retest"),
     out: Path | None = typer.Option(None, "--out"),
+    annotations: Path | None = typer.Option(None, "--annotations",
+                                            help="rubric ground-truth labels (JSONL); "
+                                                 "turns the rubric suites into judge-vs-truth rows"),
     update_readme: bool = typer.Option(False, "--update-readme"),
     judge_backend: str = typer.Option("native", "--judge-backend",
                                       help="judge implementation: native | deepeval"),
 ) -> None:
     """Measure judge agreement against exact-match ground truth (M2)."""
-    from .calibrate import run_calibration  # deferred: keeps list-suites dependency-free
+    from .calibrate import load_labels, run_calibration  # deferred: keeps list-suites dependency-free
 
     _check_backend(judge_backend)
     judges = judge or ["kenari/deepseek-v4-1-flash"]
     suites = suite or ["factual", "factual_indommlu", "factual_tydiqa"]
+    labels = load_labels(annotations) if annotations else None
     reports, pairs = run_calibration(suites, subject, judges, limit=limit, repeats=repeats,
-                                     judge_backend=judge_backend)
+                                     judge_backend=judge_backend, labels=labels)
     reporting.print_calibration(reports)
     if out:
         payload = {"config": {"suites": suites, "subjects": subject, "judges": judges,
                               "limit": limit, "repeats": repeats,
-                              "judge_backend": judge_backend},
+                              "judge_backend": judge_backend,
+                              "annotations": str(annotations) if annotations else None},
                    "reports": [r.model_dump() for r in reports],
                    "pairs": pairs}
         out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

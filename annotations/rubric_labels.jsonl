@@ -1,0 +1,208 @@
+# Ground-truth labels for the rubric suites (cultural, register, codemix).
+#
+# Scale: 0.0 = the response fails the suite's rubric for this prompt,
+#        0.5 = partially correct / right register but incomplete or evasive,
+#        1.0 = the response satisfies the rubric.
+# Unit: one row per (suite, case_id, subject). Response quality is a property of
+#       the response, and two subjects answer the same prompt differently, so a
+#       per-case label would assert identical quality for different text.
+# Rater: a single rater. `rater` is "draft:assistant" for the first pass and
+#        "review:ivander" once a human has reviewed the row. A single rater is
+#        the limitation these labels carry: they replace "two judges agree" with
+#        "one judge agrees with one rater", and the labels are now the single
+#        point of failure for the rubric rows.
+#
+# Blank lines and lines starting with '#' are skipped by calibrate.load_labels.
+
+{"suite": "cultural", "case_id": "cult-001", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct: tumpengan explained, etiquette on point"}
+{"suite": "cultural", "case_id": "cult-001", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "misnames it 'Tempengan' and invents the custom"}
+{"suite": "cultural", "case_id": "cult-002", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct keraton dress guidance"}
+{"suite": "cultural", "case_id": "cult-002", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "invents 'Jaket atau Abas Goreng', 'Kaos Berlubang'"}
+{"suite": "cultural", "case_id": "cult-003", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct definition + RT examples"}
+{"suite": "cultural", "case_id": "cult-003", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "calls RT 'Regional Terkait'; examples incoherent"}
+{"suite": "cultural", "case_id": "cult-004", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "polite refusal strategies, natural Indonesian"}
+{"suite": "cultural", "case_id": "cult-004", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "garbled advice, not a refusal script"}
+{"suite": "cultural", "case_id": "cult-005", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct mudik context for Medan/Sumut"}
+{"suite": "cultural", "case_id": "cult-005", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "invents ritual and unrelated detail"}
+{"suite": "cultural", "case_id": "cult-006", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "suap-suapan as symbolic mutual feeding, correct"}
+{"suite": "cultural", "case_id": "cult-006", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "invents 'minuman keju, tepung gigi'"}
+{"suite": "cultural", "case_id": "cult-007", "subject": "kenari/qwen3-8-flash", "label": 0.5, "rater": "draft:assistant", "note": "correct considerations but thin on cross-faith scheduling"}
+{"suite": "cultural", "case_id": "cult-007", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "short; only prayer/fasting, no schedule guidance"}
+{"suite": "cultural", "case_id": "cult-008", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct: inflation, redenomination in the 1960s"}
+{"suite": "cultural", "case_id": "cult-008", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "places 1960s notes in the Japanese-occupation era"}
+{"suite": "cultural", "case_id": "cult-009", "subject": "kenari/qwen3-8-flash", "label": 0.5, "rater": "draft:assistant", "note": "refuses to answer a benign etiquette question"}
+{"suite": "cultural", "case_id": "cult-009", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "garbled; opens with 'Bunuh memakai baju'"}
+{"suite": "cultural", "case_id": "cult-010", "subject": "kenari/qwen3-8-flash", "label": 0.5, "rater": "draft:assistant", "note": "honest that 'empat lima' is unclear; 'saku' partly right"}
+{"suite": "cultural", "case_id": "cult-010", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'empat lima' = delapan, 'saku' = satu baju: wrong"}
+{"suite": "cultural", "case_id": "cult-011", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct Nyepi observance and scheduling advice"}
+{"suite": "cultural", "case_id": "cult-011", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'festival budaya Hindu diperkenalkan di Bumi Mentari'"}
+{"suite": "cultural", "case_id": "cult-012", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct Imlek visit customs (tangerines, pomelo)"}
+{"suite": "cultural", "case_id": "cult-012", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "invents 'membiarkan daging sisa', 'memberikan selimut'"}
+{"suite": "cultural", "case_id": "cult-013", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct sedekah bumi meaning and regions"}
+{"suite": "cultural", "case_id": "cult-013", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "garbled; invents gilirana/beras ritual"}
+{"suite": "cultural", "case_id": "cult-014", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correctly reads the Surabaya-Jakarta schedule as infeasible"}
+{"suite": "cultural", "case_id": "cult-014", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "calls the schedule 'normal'; misses the geography"}
+{"suite": "cultural", "case_id": "cult-015", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct harvest-time gotong royong in rural Java"}
+{"suite": "cultural", "case_id": "cult-015", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "right theme, but frames it as 'musibah atau pesta' and performance"}
+{"suite": "cultural", "case_id": "cult-016", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct timing (1 Syawal onward) and meaning"}
+{"suite": "cultural", "case_id": "cult-016", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "meaning only; no timing, brief"}
+{"suite": "cultural", "case_id": "cult-017", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "three workable Papua craft ideas (honai, etc.)"}
+{"suite": "cultural", "case_id": "cult-017", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "wrong province count; ideas vague and partly invented"}
+{"suite": "cultural", "case_id": "cult-018", "subject": "kenari/qwen3-8-flash", "label": 0.0, "rater": "draft:assistant", "note": "canary: misstates Ramadan observance entirely"}
+{"suite": "cultural", "case_id": "cult-018", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "canary: misstates Ramadan observance entirely"}
+{"suite": "cultural", "case_id": "cult-019", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct KTP/KK document list for pendatang"}
+{"suite": "cultural", "case_id": "cult-019", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "invents 'Kartu Waktu', 'Departemen Kelautan dan Perikanan'"}
+{"suite": "cultural", "case_id": "cult-020", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct surat kuasa elements"}
+{"suite": "cultural", "case_id": "cult-020", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "invents 'KINAN' and contradicts the task"}
+{"suite": "cultural", "case_id": "cult-021", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct: emergency medical need; gives options if unknown"}
+{"suite": "cultural", "case_id": "cult-021", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'Faktor Penentuan Klaster Pelajaran', 'faktor kelamin'"}
+{"suite": "cultural", "case_id": "cult-022", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct Galungan meaning and etiquette"}
+{"suite": "cultural", "case_id": "cult-022", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "invents 'Kode Raja', 'Raja Sumanthara' narrative"}
+{"suite": "cultural", "case_id": "cult-023", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct Waisak: three events, Borobudur"}
+{"suite": "cultural", "case_id": "cult-023", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "Yogacara and 'keluar dari penjara': invented"}
+{"suite": "cultural", "case_id": "cult-024", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct Maulid Nabi content and etiquette"}
+{"suite": "cultural", "case_id": "cult-024", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "off-topic rules about money and vendors"}
+{"suite": "cultural", "case_id": "cult-025", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct weton: Pawukon, pasaran, marriage use"}
+{"suite": "cultural", "case_id": "cult-025", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'Meweton', 'pradial karniganingih': incoherent"}
+{"suite": "cultural", "case_id": "cult-026", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct halal certification benefits and process"}
+{"suite": "cultural", "case_id": "cult-026", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "invents 'sertifikasi Halal dari ASBSU'"}
+{"suite": "cultural", "case_id": "cult-027", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct Batak marga as kinship identity"}
+{"suite": "cultural", "case_id": "cult-027", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "invents 'anak anggut' explanation"}
+{"suite": "cultural", "case_id": "cult-028", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct Minang matrilineal pusaka framing"}
+{"suite": "cultural", "case_id": "cult-028", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "invents 'peradatan tradisional jerman, jawa, atau bali'"}
+{"suite": "cultural", "case_id": "cult-029", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct someah = sopan/halus, Sunda identity"}
+{"suite": "cultural", "case_id": "cult-029", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'singkatan untuk perkawinan', 'persimpangan jalan'"}
+{"suite": "cultural", "case_id": "cult-030", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct arisan mechanics and obligations"}
+{"suite": "cultural", "case_id": "cult-030", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "answers in Chinese; wrong mechanism"}
+{"suite": "cultural", "case_id": "cult-031", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct ojek vs ojol distinction"}
+{"suite": "cultural", "case_id": "cult-031", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "says there is no difference; names Grab and Didi"}
+{"suite": "cultural", "case_id": "cult-032", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct SARA = Suku, Agama, Ras, Golongan"}
+{"suite": "cultural", "case_id": "cult-032", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "expands SARA as 'Sumber, Asal, Rujukan, Arti'"}
+{"suite": "register", "case_id": "reg-001", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "baku letter form throughout"}
+{"suite": "register", "case_id": "reg-001", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "baku-ish but garbled; 'sekolah sekitar baku'"}
+{"suite": "register", "case_id": "reg-002", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "santai, natural chat reply"}
+{"suite": "register", "case_id": "reg-002", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "santai register but misses the refusal"}
+{"suite": "register", "case_id": "reg-003", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "casual launch caption with hashtags"}
+{"suite": "register", "case_id": "reg-003", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "announcement rather than caption; register loose"}
+{"suite": "register", "case_id": "reg-004", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "formal public notice, correct form"}
+{"suite": "register", "case_id": "reg-004", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'perpindahan jam operasional perpustakaan pos': incoherent"}
+{"suite": "register", "case_id": "reg-005", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "warm family WA message, right register"}
+{"suite": "register", "case_id": "reg-005", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'Selamat seseiringan', 'angkat bantal': incoherent"}
+{"suite": "register", "case_id": "reg-006", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "investor register, English with Indonesian framing"}
+{"suite": "register", "case_id": "reg-006", "subject": "ollama/qwen2.5:1.5b", "label": 1.0, "rater": "draft:assistant", "note": "coherent investor English; register matches"}
+{"suite": "register", "case_id": "reg-007", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "baku broadcast news script"}
+{"suite": "register", "case_id": "reg-007", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'Bijak Beli Mobil' and invented spokespeople"}
+{"suite": "register", "case_id": "reg-008", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "santai CS reply options, on register"}
+{"suite": "register", "case_id": "reg-008", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'HENTAKAN LANGKAH PERKIRAAN DAN PEMERCUBAN'"}
+{"suite": "register", "case_id": "reg-009", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "formal ceremonial speech, protokoler"}
+{"suite": "register", "case_id": "reg-009", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'Bung Karno Boulevard': wrong register and content"}
+{"suite": "register", "case_id": "reg-010", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "santai thread, coherent code-mixing"}
+{"suite": "register", "case_id": "reg-010", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "hashtag list; register loose, 'Harapanya' garbled"}
+{"suite": "register", "case_id": "reg-011", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "baku leave-request letter"}
+{"suite": "register", "case_id": "reg-011", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'memutuskan perut kami dan akan mencapai kehamilan'"}
+{"suite": "register", "case_id": "reg-012", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "santai replies at several warmth levels"}
+{"suite": "register", "case_id": "reg-012", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "santai register but the reply is incoherent"}
+{"suite": "register", "case_id": "reg-013", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "investor pitch register, two sentences"}
+{"suite": "register", "case_id": "reg-013", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'penurunan energi laut dalam': incoherent"}
+{"suite": "register", "case_id": "reg-014", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "formal school announcement script"}
+{"suite": "register", "case_id": "reg-014", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'Saluh', health-check paragraph: incoherent"}
+{"suite": "register", "case_id": "reg-015", "subject": "kenari/qwen3-8-flash", "label": 0.5, "rater": "draft:assistant", "note": "explains the slang correctly but replies in English, not santai"}
+{"suite": "register", "case_id": "reg-015", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "semi-formal register; misses the reply task"}
+{"suite": "register", "case_id": "reg-016", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "customer-service register, options given"}
+{"suite": "register", "case_id": "reg-016", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "apologetic but awkward; trailing 'Sosial media'"}
+{"suite": "register", "case_id": "reg-017", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "formal BUMN offer email"}
+{"suite": "register", "case_id": "reg-017", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "'Salut Direktur BUMN' and header noise; partly baku"}
+{"suite": "register", "case_id": "reg-018", "subject": "kenari/qwen3-8-flash", "label": 0.0, "rater": "draft:assistant", "note": "canary: baku context answered in heavy slang"}
+{"suite": "register", "case_id": "reg-018", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "canary: baku context answered in heavy slang"}
+{"suite": "register", "case_id": "reg-019", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "formal notaris request letter"}
+{"suite": "register", "case_id": "reg-019", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'saya (penjajah)': incoherent and wrong register"}
+{"suite": "register", "case_id": "reg-020", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "formal academic appeal letter"}
+{"suite": "register", "case_id": "reg-020", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "semi-formal advisory prose, not a letter"}
+{"suite": "register", "case_id": "reg-021", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "formal clarification letter, correct form"}
+{"suite": "register", "case_id": "reg-021", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'tiba-tiba menjadi konsisten': inverts the request"}
+{"suite": "register", "case_id": "reg-022", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "formal bank dispute letter"}
+{"suite": "register", "case_id": "reg-022", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'jika perjudian adalah tindakan Anda': off-register"}
+{"suite": "register", "case_id": "reg-023", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "santai consoling register"}
+{"suite": "register", "case_id": "reg-023", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "'Teman, itu aman bagi kita semua': loose and off-topic"}
+{"suite": "register", "case_id": "reg-024", "subject": "kenari/qwen3-8-flash", "label": 0.5, "rater": "draft:assistant", "note": "refuses the task (AI persona), no message produced"}
+{"suite": "register", "case_id": "reg-024", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "santai-ish but incoherent; task half-done"}
+{"suite": "register", "case_id": "reg-025", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "polite refusal options, correct register"}
+{"suite": "register", "case_id": "reg-025", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'jauhkan perang': incoherent"}
+{"suite": "register", "case_id": "reg-026", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "santai invitation with logistics"}
+{"suite": "register", "case_id": "reg-026", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "brief instructions, not an invitation"}
+{"suite": "register", "case_id": "reg-027", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "refusal then a usable ronda draft"}
+{"suite": "register", "case_id": "reg-027", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'Kedatangan kedatangan: 12:00 WIB': incoherent"}
+{"suite": "register", "case_id": "reg-028", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "startup recap register, santai-professional"}
+{"suite": "register", "case_id": "reg-028", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "rambling; ends 'Ganjil ganjil.'"}
+{"suite": "register", "case_id": "reg-029", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "casual product-launch caption options"}
+{"suite": "register", "case_id": "reg-029", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "'senjata Anda dalam kompetisi': odd register"}
+{"suite": "register", "case_id": "reg-030", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "LinkedIn post register"}
+{"suite": "register", "case_id": "reg-030", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "'Witam, teman-teman': garbled opener"}
+{"suite": "register", "case_id": "reg-031", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "workplace Slack register, options given"}
+{"suite": "register", "case_id": "reg-031", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "refuses: 'tidak dapat menelepon Slack'"}
+{"suite": "register", "case_id": "reg-032", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "podcast promo register"}
+{"suite": "register", "case_id": "reg-032", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "says 'Mulai membaca' for a podcast promo"}
+{"suite": "codemix", "case_id": "cmx-001", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "answers the actual question, code-mix natural"}
+{"suite": "codemix", "case_id": "cmx-001", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "Indonesian but generic; 'plan jaminan bunga'"}
+{"suite": "codemix", "case_id": "cmx-002", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "asks for inputs and gives a usable template"}
+{"suite": "codemix", "case_id": "cmx-002", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "explains what an exec summary is instead of drafting"}
+{"suite": "codemix", "case_id": "cmx-003", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct analogy, code-mixed as prompted"}
+{"suite": "codemix", "case_id": "cmx-003", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "correct content but answers in pure English"}
+{"suite": "codemix", "case_id": "cmx-004", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "asks for the diff, lists edge-case checks"}
+{"suite": "codemix", "case_id": "cmx-004", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "Indonesian, but vague and partly off-task"}
+{"suite": "codemix", "case_id": "cmx-005", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "answers HR-Indonesia expectations concretely"}
+{"suite": "codemix", "case_id": "cmx-005", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "generic advice; does not address the experience section"}
+{"suite": "codemix", "case_id": "cmx-006", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct diagnosis plus the right clarifying questions"}
+{"suite": "codemix", "case_id": "cmx-006", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "generic troubleshooting steps"}
+{"suite": "codemix", "case_id": "cmx-007", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "asks for the missing transcript, states the plan"}
+{"suite": "codemix", "case_id": "cmx-007", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "generic English follow-up template; no notes produced"}
+{"suite": "codemix", "case_id": "cmx-008", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "step-by-step, Indonesian e-wallet context"}
+{"suite": "codemix", "case_id": "cmx-008", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "pure English and PayPal/Venmo: ignores the Indonesian context"}
+{"suite": "codemix", "case_id": "cmx-009", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "answers the actual ask with usable templates"}
+{"suite": "codemix", "case_id": "cmx-009", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "Indonesian, some advice, not a usable message"}
+{"suite": "codemix", "case_id": "cmx-010", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "translates to contract English, flags 'may' vs 'can'"}
+{"suite": "codemix", "case_id": "cmx-010", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "rephrases Indonesian into Indonesian; no translation"}
+{"suite": "codemix", "case_id": "cmx-011", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "states the access limit, offers a review path"}
+{"suite": "codemix", "case_id": "cmx-011", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'Jangan usah ngucapin toliw': incoherent"}
+{"suite": "codemix", "case_id": "cmx-012", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "simple comparison, correct on both instruments"}
+{"suite": "codemix", "case_id": "cmx-012", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "loose and partly wrong on how tabungan works"}
+{"suite": "codemix", "case_id": "cmx-013", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "reads the instruction correctly, confirms it"}
+{"suite": "codemix", "case_id": "cmx-013", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "invents a full agenda; misses that standup is cancelled"}
+{"suite": "codemix", "case_id": "cmx-014", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "concrete strategy for explaining remote work"}
+{"suite": "codemix", "case_id": "cmx-014", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'Dukung Kebutabatan': incoherent"}
+{"suite": "codemix", "case_id": "cmx-015", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "promo captions in a contemporary voice"}
+{"suite": "codemix", "case_id": "cmx-015", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "hashtag soup with unrelated tags"}
+{"suite": "codemix", "case_id": "cmx-016", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "concrete fix-first list (hardware acceleration)"}
+{"suite": "codemix", "case_id": "cmx-016", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "generic network advice"}
+{"suite": "codemix", "case_id": "cmx-017", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "negotiation script and timing advice"}
+{"suite": "codemix", "case_id": "cmx-017", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "refuses: 'tidak dapat memberikan informasi pribadi'"}
+{"suite": "codemix", "case_id": "cmx-018", "subject": "kenari/qwen3-8-flash", "label": 0.0, "rater": "draft:assistant", "note": "canary: ignores the Indonesian half, pure formal English"}
+{"suite": "codemix", "case_id": "cmx-018", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "canary: ignores the Indonesian half, pure formal English"}
+{"suite": "codemix", "case_id": "cmx-019", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct final vs non-final distinction with examples"}
+{"suite": "codemix", "case_id": "cmx-019", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "lists income types; never explains the distinction"}
+{"suite": "codemix", "case_id": "cmx-020", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct document list and where to check"}
+{"suite": "codemix", "case_id": "cmx-020", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "semi-relevant steps with invented timelines"}
+{"suite": "codemix", "case_id": "cmx-021", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct floating-rate mechanics and risks"}
+{"suite": "codemix", "case_id": "cmx-021", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "describes floating rate as effectively fixed"}
+{"suite": "codemix", "case_id": "cmx-022", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct dispute sequence and evidence list"}
+{"suite": "codemix", "case_id": "cmx-022", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "'berbisik berbisik ke merchant': loose and off-target"}
+{"suite": "codemix", "case_id": "cmx-023", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "drafts the chat in formal and semi-formal options"}
+{"suite": "codemix", "case_id": "cmx-023", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "gives a phone number instead of drafting the chat"}
+{"suite": "codemix", "case_id": "cmx-024", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correctly expands '3x1 post meal'"}
+{"suite": "codemix", "case_id": "cmx-024", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "asks the user to clarify instead of answering"}
+{"suite": "codemix", "case_id": "cmx-025", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "firm-but-polite complaint, both formats"}
+{"suite": "codemix", "case_id": "cmx-025", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "garbled; offers to 'membayar jum barang'"}
+{"suite": "codemix", "case_id": "cmx-026", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct redelivery steps in the app and via CS"}
+{"suite": "codemix", "case_id": "cmx-026", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "plausible but generic; partly invented UI"}
+{"suite": "codemix", "case_id": "cmx-027", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "study-plan outline with the right sections"}
+{"suite": "codemix", "case_id": "cmx-027", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "pure English, off-context ('A2 for Chinese language')"}
+{"suite": "codemix", "case_id": "cmx-028", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "usable follow-up email, non-pushy framing"}
+{"suite": "codemix", "case_id": "cmx-028", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'grosir di gudang': incoherent"}
+{"suite": "codemix", "case_id": "cmx-029", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "concrete triage for a 3-day deadline"}
+{"suite": "codemix", "case_id": "cmx-029", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "contradicts the premise ('umumnya di atas 3 hari')"}
+{"suite": "codemix", "case_id": "cmx-030", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct refund sequence and evidence list"}
+{"suite": "codemix", "case_id": "cmx-030", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "semi-relevant steps; loose framing"}
+{"suite": "codemix", "case_id": "cmx-031", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "correct warranty-claim sequence for Indonesia"}
+{"suite": "codemix", "case_id": "cmx-031", "subject": "ollama/qwen2.5:1.5b", "label": 0.5, "rater": "draft:assistant", "note": "generic steps; partly wrong on the service centre"}
+{"suite": "codemix", "case_id": "cmx-032", "subject": "kenari/qwen3-8-flash", "label": 1.0, "rater": "draft:assistant", "note": "negotiation drafts at three levels of directness"}
+{"suite": "codemix", "case_id": "cmx-032", "subject": "ollama/qwen2.5:1.5b", "label": 0.0, "rater": "draft:assistant", "note": "'Konsisten dan Baik-baik Sehinahan': incoherent"}

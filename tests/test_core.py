@@ -1,8 +1,8 @@
 import pytest
 
 from ideval.calibrate import (agreement_terms, build_inter_judge_report, build_report,
-                              cohens_kappa, framing_agreement, pabak, pair_scores,
-                              precision_recall, spearman)
+                              canary_outcomes, cohens_kappa, draw_stats, framing_agreement,
+                              pabak, pair_scores, precision_recall, spearman)
 from ideval.calibrate import test_retest as retest_agreement  # aliased: pytest collects bare `test_*` names
 from ideval.metrics.base import parse_verdict
 from ideval.reporting import update_readme_table
@@ -212,6 +212,40 @@ def test_build_report_flags_unstable_and_framing():
     report = build_report("j", "factual", [1.0] * 40, [1.0] * 40, subject="m",
                           draws=[[1.0, 0.0]] * 40)
     assert "unstable" in report.flags and "framing-sensitive" in report.flags
+
+
+def test_canary_outcomes_flags_a_passing_judge():
+    # the canary's failure mode is the judge scoring it AT or above threshold
+    canary = CaseModel(id="canary-case", suite="s", input="i", ground_truth_type="rubric",
+                       reference_note="ADVERSARIAL: should score LOW")
+    plain = CaseModel(id="plain-case", suite="s", input="i", ground_truth_type="rubric")
+    passing = EvalResult(case_id="canary-case", suite="s", model="m", output="o", score=0.8)
+    missing = EvalResult(case_id="plain-case", suite="s", model="m", output="o", score=0.2)
+    assert canary_outcomes([canary, plain], [passing, missing]) == {"canary-case": True}
+
+    caught = EvalResult(case_id="canary-case", suite="s", model="m", output="o", score=0.2)
+    assert canary_outcomes([canary, plain], [caught, missing]) == {"canary-case": False}
+
+
+def test_draw_stats_excludes_subject_failures():
+    # a case the subject model failed never reached the judge, so its draws are
+    # not attempted at all -- counting them would report a subject failure as one
+    subject_failed = EvalResult(case_id="a", suite="s", model="m", output="", error="boom")
+    complete = EvalResult(case_id="b", suite="s", model="m", output="o",
+                          judge_repeats=[1.0, 1.0, 1.0])
+    partial = EvalResult(case_id="c", suite="s", model="m", output="o", judge_repeats=[1.0])
+    assert draw_stats([subject_failed, complete, partial], 3) == (6, 2)
+
+
+def test_build_report_reports_kappa_across_thresholds():
+    # the 0.5 draw sits exactly on the boundary: it passes at 0.3 and 0.5, fails
+    # at 0.7, so the judge's binarized pass set shrinks as the threshold rises
+    judge_scores = [0.9, 0.9, 0.1, 0.5]
+    gt_scores = [1.0, 1.0, 1.0, 0.0]
+    report = build_report("j", "factual", judge_scores, gt_scores, subject="m")
+    assert report.kappa_t03 < 0 < report.kappa_t07
+    assert "threshold-sensitive" in report.flags
+    assert report.kappa == cohens_kappa(judge_scores, gt_scores, 0.5)
 
 
 def test_score_with_judge_does_not_inherit_previous_judge_score(monkeypatch):
