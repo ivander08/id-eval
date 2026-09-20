@@ -27,10 +27,10 @@ recall and Spearman. The three rubric suites have no `expected` value, so they w
 originally compared against each other — one row per unordered judge pair,
 labelled `vs <judge>`. `annotations/rubric_labels.jsonl` now supplies a
 `0.0`/`0.5`/`1.0` label per (suite, case, subject) and those rows read
-`vs = truth` against it instead. **The labels are one rater's judgment**, so the
-rubric rows now answer "does a judge agree with one rater" rather than "do two
-judges agree with each other" — see "What we still get wrong" below, where the
-single-rater limitation is stated in full.
+`vs = truth` against it instead. **The labels went through a drafting pass and a
+review pass, both by models**, so the rubric rows now answer "does a judge agree
+with one rater" rather than "do two judges agree with each other" — see "What we
+still get wrong" below, where the limitation is stated in full.
 
 Subjects: `kenari/qwen3-8-flash` and `ollama/qwen2.5:1.5b`. Judges:
 `kenari/deepseek-v4-1-flash`, `kenari/glm-5-3-flash` and `ollama/qwen2.5:1.5b`.
@@ -122,18 +122,23 @@ rows that were never really about self-preference.
 
 - **`prevalence` fires on 11 of 36 rows.** Growing the suites fixed `low-n`; it
   cannot fix a skewed ground truth. `design-notes.md` §8.5 has the detail.
-- **The rubric labels are one rater's judgment.** The three rubric suites now
-  carry ground truth — 192 labels, one per (suite, case, subject), in
-  `annotations/rubric_labels.jsonl` — so their 18 rows are judge-vs-truth instead
-  of inter-judge. Every row's `rater` field reads `draft:assistant`: a single
-  drafting pass with no independent second rater. That replaces "two judges agree"
-  with "one judge agrees with one rater", and the labels are now the single point of
-  failure for those rows. The mean kappa is `0.234` across the 12 API-judge rubric
-  rows and `0.057` across the 6 local-judge ones — lower than the `0.531` the two
-  API judges posted against each other, which is the expected direction, since two
-  judges from the same family overstate agreement with a third party. `codemix`
-  labels pass `0.828` of the time, so its two API rows carry `prevalence` and their
-  kappa is the least readable number in the block. See §11.1.
+- **The rubric labels are reviewed, but by a second model, not a human.** The three
+  rubric suites now carry ground truth — 192 labels, one per (suite, case, subject),
+  in `annotations/rubric_labels.jsonl` — so their 18 rows are judge-vs-truth instead
+  of inter-judge. Every row's `rater` field reads `review:assistant`: the drafting
+  pass (`draft:assistant`) was followed by a second pass that re-read each response
+  against its suite's rubric through `scripts/label_review.py` and changed 4 labels
+  (`cult-006`, `cult-007`, `cmx-007`, `cmx-008`). That is a real second reading and
+  it caught both an over-credited and an under-credited row, but it is another model
+  reading the same drafts, so it shares the first pass's blind spots in a way an
+  independent human rater would not. The labels are still the single point of
+  failure for those rows, and `review:<name>` for a human remains the open hook.
+  The mean kappa is `0.235` across the 12 API-judge rubric rows and `0.054` across
+  the 6 local-judge ones — lower than the `0.531` the two API judges posted against
+  each other, which is the expected direction, since two judges from the same family
+  overstate agreement with a third party. `codemix` labels pass `0.812` of the time,
+  so its two API rows carry `prevalence` and their kappa is the least readable number
+  in the block. See §11.1.
 - **`low-n` is no longer the binding constraint.** All four hand-authored suites
   were grown to 32 cases, so every row carries `n >= 32` and no row is flagged for
   sample size. What remains is difficulty, which is a property of the
@@ -208,8 +213,21 @@ python scripts/replay_calibration.py \
 Without `--match-audit` it asserts that recomputing `gt` from each row's stored
 `output` and `expected` reproduces the stored `gt` on all 888 scoreable rows, and
 exits non-zero otherwise; `--verify-readme README.md` checks the rebuilt rows
-against the committed table row for row. A full live run is still what produced the
-judge verdicts in the first place:
+against the committed table row for row. The labels themselves are reviewed through
+a worksheet, so a pass can be re-run or extended without re-reading the artifact:
+
+```bash
+python scripts/label_review.py emit          # -> annotations/review_worksheet.md
+python scripts/label_review.py apply --decisions annotations/review_decisions.jsonl
+```
+
+`emit` renders one section per (suite, case, subject) from the stored artifact —
+prompt, rubric note, draft label with its rationale, and the response, truncating
+only `cmx-015`'s 88k-character repetition loop. `apply` is the only writer: it
+validates each decision against the same rules `load_labels` uses, keeps the
+provenance header byte for byte, leaves undecided rows at `draft:assistant`, and
+writes in place through a temp file + `os.replace`. A full live run is still what
+produced the judge verdicts in the first place:
 
 ```bash
 export OPENAI_API_KEY=...        # the kenari provider reuses this variable

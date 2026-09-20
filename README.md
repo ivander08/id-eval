@@ -79,7 +79,7 @@ the results table here.
 | ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | factual_tydiqa | 40 | 0.309 | 0.300 | 0.825 | 0.500 | 0.789 | 0.600 | 0.256 | 0 | - | 6/120 | 0.309 | 0.229 | self-judge, unstable, framing-sensitive |
 | kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | cultural | 32 | 0.207 | 0.625 | 0.927 | 0.812 | 1.000 | 0.806 | 0.580 | 0 | 0/1 | 0/96 | 0.368 | 0.535 |  |
 | kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | cultural | 32 | 0.475 | 0.875 | 0.969 | 0.938 | 1.000 | 0.935 | 0.390 | 0 | 0/1 | 0/96 | 1.000 | 0.304 | prevalence |
-| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | cultural | 32 | 0.080 | 0.188 | 0.766 | 0.406 | 1.000 | 0.581 | 0.328 | 0 | 0/1 | 8/96 | 0.207 | 0.139 | unstable, framing-sensitive |
+| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | cultural | 32 | 0.080 | 0.188 | 0.766 | 0.406 | 1.000 | 0.581 | 0.253 | 0 | 0/1 | 8/96 | 0.207 | 0.038 | unstable, framing-sensitive |
 | kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | cultural | 32 | 0.000 | 0.812 | 1.000 | 1.000 | - | 0.000 | 0.424 | 0 | 0/1 | 0/96 | 0.264 | - | prevalence |
 | kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | cultural | 32 | 0.000 | 0.812 | 0.990 | 0.969 | - | 0.000 | 0.371 | 0 | 0/1 | 0/96 | 0.351 | - | prevalence |
 | ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | cultural | 32 | -0.053 | 0.000 | 0.771 | 0.344 | 0.067 | 0.333 | -0.083 | 0 | 0/1 | 3/96 | 0.003 | 0.000 | self-judge, unstable, framing-sensitive, threshold-sensitive |
@@ -89,12 +89,12 @@ the results table here.
 | kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | register | 32 | 0.000 | -0.062 | 1.000 | 1.000 | - | 0.000 | 0.292 | 0 | 0/1 | 0/96 | 0.111 | 0.000 |  |
 | kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | register | 32 | 0.000 | -0.062 | 0.990 | 1.000 | - | 0.000 | 0.361 | 0 | 0/1 | 0/96 | 0.111 | 0.000 |  |
 | ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | register | 32 | 0.055 | 0.062 | 0.817 | 0.484 | 0.556 | 0.588 | 0.193 | 0 | 0/1 | 8/96 | -0.045 | 0.071 | self-judge, unstable, framing-sensitive, threshold-sensitive |
-| kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | codemix | 32 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 0.325 | 0 | 0/1 | 0/96 | 1.000 | 0.652 | prevalence |
-| kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | codemix | 32 | 0.652 | 0.938 | 1.000 | 1.000 | 1.000 | 0.968 | 0.324 | 0 | 0/1 | 0/96 | 1.000 | 0.475 | prevalence |
-| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | codemix | 32 | -0.049 | 0.750 | 0.958 | 0.875 | 0.966 | 0.903 | -0.020 | 0 | 1/1 | 3/96 | -0.032 | -0.061 | prevalence, canary-fail |
-| kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | codemix | 32 | 0.029 | -0.312 | 0.990 | 0.969 | 1.000 | 0.045 | 0.430 | 0 | 0/1 | 0/96 | 0.090 | - |  |
-| kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | codemix | 32 | 0.059 | -0.250 | 0.990 | 0.969 | 1.000 | 0.091 | 0.406 | 0 | 0/1 | 0/96 | 0.158 | - |  |
-| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | codemix | 32 | 0.011 | 0.312 | 0.953 | 0.875 | 0.690 | 0.909 | 0.008 | 0 | 1/1 | 7/96 | 0.133 | 0.000 | self-judge, canary-fail |
+| kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | codemix | 32 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 0.270 | 0 | 0/1 | 0/96 | 1.000 | 0.467 | prevalence |
+| kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | codemix | 32 | 0.652 | 0.938 | 1.000 | 1.000 | 1.000 | 0.968 | 0.452 | 0 | 0/1 | 0/96 | 1.000 | 0.784 | prevalence |
+| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | codemix | 32 | -0.049 | 0.750 | 0.958 | 0.875 | 0.966 | 0.903 | -0.169 | 0 | 1/1 | 3/96 | -0.032 | -0.118 | prevalence, canary-fail |
+| kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | codemix | 32 | 0.033 | -0.250 | 0.990 | 0.969 | 1.000 | 0.048 | 0.452 | 0 | 0/1 | 0/96 | 0.103 | - |  |
+| kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | codemix | 32 | 0.067 | -0.188 | 0.990 | 0.969 | 1.000 | 0.095 | 0.451 | 0 | 0/1 | 0/96 | 0.189 | - |  |
+| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | codemix | 32 | -0.005 | 0.250 | 0.953 | 0.875 | 0.655 | 0.905 | 0.004 | 0 | 1/1 | 7/96 | 0.116 | 0.000 | self-judge, canary-fail, threshold-sensitive |
 <!-- calibration:end -->
 
 The `flags` column marks cells that cannot be read at face value: `low-n`
@@ -124,15 +124,18 @@ factual suites carry none, so their cells render `-`. `draws` is
 repeat the row's kappa at `0.3` and `0.7` so a reader can see whether the sign is an
 artifact of the `0.5` convention; `-` means kappa is undefined there (`pe = 1.0`).
 
-**The rubric rows are judge-vs-truth against single-rater labels.** `cultural`,
+**The rubric rows are judge-vs-truth against reviewed, machine-authored labels.** `cultural`,
 `register` and `codemix` have no `expected` value, so round 1 could only calibrate
 them by comparing judges with each other. `annotations/rubric_labels.jsonl` now
 supplies a `0.0`/`0.5`/`1.0` label per (suite, case, subject) — 96 cases x 2
-subjects — and those rows read `vs = truth` against it. The labels are one rater's
-judgment (`rater: draft:assistant`), so this replaces "two judges agree" with "one
-judge agrees with one rater", and the labels become the new single point of
-failure. [`docs/design-notes.md`](docs/design-notes.md) §11 states the limitation
-and reports the resulting kappa.
+subjects — and those rows read `vs = truth` against it. Every one of the 192 rows
+has been through a second pass (`rater: review:assistant`) that re-read each
+response against its suite's rubric via `scripts/label_review.py`, and that pass
+changed 4 labels. It was not a human pass, so the labels remain the single point of
+failure for the rubric rows: they replace "two judges agree" with "one judge agrees
+with one rater", and a second model reading the same drafts shares the first pass's
+blind spots in a way an independent human would not. [`docs/design-notes.md`](docs/design-notes.md)
+§11 states the limitation and reports the resulting kappa.
 
 **The table was regenerated offline**, from the stored `results_calibration.json`
 via `scripts/replay_calibration.py`, not by a new `calibrate` run: `adapters.chat`

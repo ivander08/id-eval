@@ -427,7 +427,8 @@ strengths is marketing.
    (Doğruöz et al.; Fu & Liu report mean Fleiss' κ ≈ 0.3 across 25 languages).
    Authoring labels for these 96 cases is the only way to close it, and the labels
    would themselves be a single rater's judgment — the exact reliability problem
-   being measured. **§11.1 closes this and states the limitation it carries.**
+   being measured. **§11.1 closes this, and states that the review it added is a
+   second model pass rather than the human one the `rater` field was designed for.**
 
    The inter-judge result is worth recording, because it is what the closed
    version is compared against. Across the 18 rubric pair rows, the two API judges
@@ -726,14 +727,16 @@ partially closed with the remainder stated. The numbers below are read from the
 regenerated artifacts (`README.md`'s table, `results_pairwise.json`,
 `annotations/rubric_labels.jsonl`), not restated from the design that produced them.
 
-### The rubric suites are now judge-vs-truth, against single-rater labels
+### The rubric suites are now judge-vs-truth, against reviewed labels
 
 `annotations/rubric_labels.jsonl` — 192 rows, one per `(suite, case_id, subject)`,
 carrying a `0.0`/`0.5`/`1.0` label and a `rater` field. `calibrate.load_labels`
 reads them and `run_calibration` takes `labels=` as its last parameter
 (`--annotations` on the CLI). A rubric suite now takes the judge-vs-truth path when
 any case carries a label for this subject, so the 18 rubric rows in the README read
-`vs = truth` instead of `vs <judge>`.
+`vs = truth` instead of `vs <judge>`. `scripts/label_review.py` is the review loop
+that produced the current file: `emit` renders a worksheet, `apply` writes a
+reviewer's pass back and is the only writer.
 
 **The unit is the response, not the case.** Two subjects answer the same prompt
 differently, so a per-case label would assert identical quality for two different
@@ -777,28 +780,44 @@ The resulting rows, from the regenerated table:
 | `codemix` | `kenari/qwen3-8-flash` | `kenari/deepseek-v4-1-flash` | 32 | 1.000 | 1.000 | 0/1 | prevalence |
 | `codemix` | `kenari/qwen3-8-flash` | `kenari/glm-5-3-flash` | 32 | 0.652 | 0.938 | 0/1 | prevalence |
 | `codemix` | `kenari/qwen3-8-flash` | `ollama/qwen2.5:1.5b` | 32 | −0.049 | 0.750 | **1/1** | prevalence, canary-fail |
-| `codemix` | `ollama/qwen2.5:1.5b` | `kenari/deepseek-v4-1-flash` | 32 | 0.029 | −0.312 | 0/1 | |
-| `codemix` | `ollama/qwen2.5:1.5b` | `kenari/glm-5-3-flash` | 32 | 0.059 | −0.250 | 0/1 | |
-| `codemix` | `ollama/qwen2.5:1.5b` | `ollama/qwen2.5:1.5b` | 32 | 0.011 | 0.312 | **1/1** | self-judge, canary-fail |
+| `codemix` | `ollama/qwen2.5:1.5b` | `kenari/deepseek-v4-1-flash` | 32 | 0.033 | −0.250 | 0/1 | |
+| `codemix` | `ollama/qwen2.5:1.5b` | `kenari/glm-5-3-flash` | 32 | 0.067 | −0.188 | 0/1 | |
+| `codemix` | `ollama/qwen2.5:1.5b` | `ollama/qwen2.5:1.5b` | 32 | −0.005 | 0.250 | **1/1** | self-judge, canary-fail, threshold-sensitive |
 
 **What this replaced, and what it cost.** The old rubric rows answered "do two
 judges agree with each other". These answer "does a judge agree with one rater",
 which is the question §8.1 said was the only way to close the gap. The mean kappa
-is `0.234` across the 12 API-judge rows and `0.057` across the 6 local-judge rows —
+is `0.235` across the 12 API-judge rows and `0.054` across the 6 local-judge rows —
 lower than the inter-judge `0.531` the two API judges posted against each other,
 which is the expected direction: agreement between two judges drawn from the same
 model family overstates agreement with a third party's judgment.
 
-**The labels are the new single point of failure, and that is the honest reading.**
-Every row carries `rater: draft:assistant` — one drafting pass, no independent
-second rater. So this step trades "two judges agree" for "one judge agrees with one
-rater", and it does not make the rubric rows validated. The label distribution is
-skewed in a way that matters: `codemix` labels pass `0.828` of the time, so the two
-API rows there carry `prevalence` and their kappa is the least readable number in
-the block. The `rater` field is the hook for a real second pass
-(`review:<name>`), and until a row carries one, the limitation stands as stated
-here rather than as an implication that the labels are ground truth in the sense
-the `factual` suites' `expected` values are.
+**The labels are reviewed, and still the single point of failure.** Every row now
+carries `rater: review:assistant` — but that is a *second model pass*, not a human
+one. `scripts/label_review.py emit` renders the whole worksheet (prompt, rubric
+note, draft label with its rationale, the stored response); the pass re-read all
+192 rows against their suites' rubrics and changed 4 labels: `cult-006 / kenari`
+`1.0 -> 0.5` (it names family and guests as the feeders rather than the couple
+feeding each other, and invents a mantra), `cult-007 / kenari` `0.5 -> 1.0` (the
+draft's stated reason — thin on cross-faith scheduling — does not hold, since the
+response does cover a non-halal option and not assuming every participant fasts),
+`cmx-007 / kenari` `1.0 -> 0.5` (correct behavior, but it answers an Indonesian
+prompt in pure English, the same language half the draft scores `cmx-003` at 0.5
+for), and `cmx-008 / ollama` `0.5 -> 0.0` (pure English on PayPal/Venmo with
+invented UI, the rubric's pure-English fail clause — the reading the draft already
+applies to `cmx-027`). The other 188 rows were confirmed at their draft label and
+keep the draft's rationale.
+
+That review is a real second reading, and it caught a genuinely over-credited row
+and a genuinely under-credited one. It is not the independent human pass the
+`rater` field was designed to hook, so the labels are still the single point of
+failure: a second model reading the same drafts shares the first pass's blind
+spots in a way an independent human would not, and nothing here establishes the
+labels as ground truth in the sense the `factual` suites' `expected` values are.
+The label distribution is skewed in a way that matters: `codemix` labels pass
+`0.812` of the time, so its two API rows carry `prevalence` and their kappa is the
+least readable number in the block. `rater: review:<name>` for a human reviewer
+remains the open hook.
 
 ### Pairwise position bias is measured, and two of three judges show none
 
