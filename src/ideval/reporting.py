@@ -49,6 +49,10 @@ def print_calibration(reports: list[CalibrationReport]) -> None:
     table.add_column("recall", justify="right")
     table.add_column("spearman", justify="right")
     table.add_column("err", justify="right")
+    table.add_column("canary", justify="right")
+    table.add_column("draws", justify="right")
+    table.add_column("k03", justify="right")
+    table.add_column("k07", justify="right")
     table.add_column("flags")
     for r in reports:
         fmt = lambda v: "-" if v is None else format(v, ".3f")  # noqa: E731
@@ -56,6 +60,9 @@ def print_calibration(reports: list[CalibrationReport]) -> None:
                       fmt(r.kappa), fmt(r.pabak),
                       fmt(r.test_retest), fmt(r.framing_agreement),
                       fmt(r.precision), fmt(r.recall), fmt(r.spearman), str(r.errors),
+                      f"{r.canary_failures}/{r.canaries}" if r.canaries else "-",
+                      f"{r.draw_failures}/{r.draws}" if r.draws else "-",
+                      fmt(r.kappa_t03), fmt(r.kappa_t07),
                       ", ".join(r.flags))
     console.print(table)
 
@@ -76,11 +83,14 @@ def update_readme_table(path: Path, markdown: str) -> None:
 
 def actions_summary(reports: list[CalibrationReport]) -> str:
     """Markdown for GitHub Actions job summaries."""
-    lines = ["| judge | vs | subject | suite | n | kappa | pabak | retest | frame | precision | recall | spearman | err | flags |",
-             "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+    lines = ["| judge | vs | subject | suite | n | kappa | pabak | retest | frame | precision | recall | spearman | err | canary | draws | k03 | k07 | flags |",
+             "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
     for r in reports:
         fmt = lambda v: "-" if v is None else format(v, ".3f")  # noqa: E731
         lines.append(f"| {r.judge} | {r.judge_b or 'truth'} | {r.subject} | {r.suite} | {r.n} | {fmt(r.kappa)} | {fmt(r.pabak)} | "
                      f"{fmt(r.test_retest)} | {fmt(r.framing_agreement)} | {fmt(r.precision)} | "
-                     f"{fmt(r.recall)} | {fmt(r.spearman)} | {r.errors} | {', '.join(r.flags)} |")
+                     f"{fmt(r.recall)} | {fmt(r.spearman)} | {r.errors} | "
+                     f"{f'{r.canary_failures}/{r.canaries}' if r.canaries else '-'} | "
+                     f"{f'{r.draw_failures}/{r.draws}' if r.draws else '-'} | "
+                     f"{fmt(r.kappa_t03)} | {fmt(r.kappa_t07)} | {', '.join(r.flags)} |")
     return "\n".join(lines)

@@ -125,11 +125,14 @@ Norman et al.'s protocol rather than only the validity one.
 
 ### Two axes, one table
 
-A suite whose cases are all `rubric` has no numeric ground truth, so there is
-nothing to score a judge against. `run_calibration` detects that (`not any(c.scoreable
-for c in cases)`) and emits **one row per judge pair** instead of one row per
-judge: `build_inter_judge_report(judge, judge_b, ...)` compares two judges over
-the same subject outputs.
+A suite whose cases are all `rubric` has no `expected` value, so there is nothing
+in the suite itself to score a judge against. `run_calibration` detects that
+(`not any(c.scoreable for c in cases)`) and emits **one row per judge pair**
+instead of one row per judge: `build_inter_judge_report(judge, judge_b, ...)`
+compares two judges over the same subject outputs. Since §11.1 it first checks
+whether the caller passed `labels` and this suite and subject have any: a rubric
+suite with labels takes the judge-vs-truth path against them instead, and the
+inter-judge path is the fallback for a rubric suite that has none.
 
 The two row kinds share `CalibrationReport`, distinguished by `judge_b`:
 empty means judge-vs-ground-truth, non-empty names the judge compared against.
@@ -146,9 +149,10 @@ than a pooled figure: pooling two judges' draws would mix items and describe
 neither judge. Each judge's raw draws stay on the pair rows, so either can be
 recomputed.
 
-A rubric suite run with fewer than two judges emits no rows and prints a warning.
-That is intended — with one judge there is no comparison, and no ground truth to
-fall back on.
+A rubric suite run with fewer than two judges **and no labels** emits no rows and
+prints a warning. That is intended — with one judge there is no comparison, and no
+ground truth to fall back on. With labels, one judge is enough: it is scored
+against the labels, not against a peer.
 
 The reason is a published and common failure mode. On a near-constant ground
 truth, `pe` approaches 1, and kappa collapses toward zero **no matter how well the
@@ -157,10 +161,10 @@ judge agrees**. From the shipped study:
 | judge | subject | suite | n | po | kappa | pabak | flags |
 |---|---|---|---:|---:|---:|---:|---|
 | `kenari/deepseek-v4-1-flash` | `kenari/qwen3-8-flash` | factual | 32 | 0.969 | **0.000** | 0.938 | prevalence |
-| `kenari/glm-5-3-flash` | `kenari/qwen3-8-flash` | factual_tydiqa | 40 | 0.900 | **−0.039** | 0.800 | prevalence |
+| `kenari/glm-5-3-flash` | `kenari/qwen3-8-flash` | factual_tydiqa | 40 | 0.925 | **−0.034** | 0.850 | prevalence |
 
 Both rows are real output. The first is a judge that agreed with ground truth 31
-times out of 32 and is reported as `kappa = 0.000`; the second agreed 36 times out
+times out of 32 and is reported as `kappa = 0.000`; the second agreed 37 times out
 of 40 and is reported as a *negative* kappa. A reader given only the kappa column
 would conclude both judges are worthless, or worse than worthless. They are not —
 the ground truth is skewed and kappa is the wrong instrument for those cells.
@@ -181,8 +185,8 @@ above, so the test's ten-observation fixture stays as the minimal reproduction.
 
 PABAK removes prevalence **and** bias, so it reads optimistically — it is not a
 strictly better kappa. The literature's other candidate is Gwet's AC1, which is
-more conservative (on the `factual_tydiqa` cell above, `po = 0.900`,
-`pe_AC1 = 0.095`, `AC1 = 0.890` against `pabak = 0.800`; on the 32-case `factual`
+more conservative (on the `factual_tydiqa` cell above, `po = 0.925`,
+`pe_AC1 = 0.095`, `AC1 = 0.915` against `pabak = 0.850`; on the 32-case `factual`
 cell the two agree closely, `AC1 = 0.968` against `pabak = 0.938`). We report
 PABAK and the raw agreement terms rather than a single number, on the principle
 that a reader should be able to recompute either coefficient from what we
@@ -249,7 +253,7 @@ alone would have hidden this entirely.
 **Agreement and stability are orthogonal here, exactly as Norman et al. claim.**
 `kenari/glm-5-3-flash` on `factual_indommlu / ollama` posts `kappa = 0.968` *and*
 `test_retest = 0.996` with zero flags. `kenari/deepseek-v4-1-flash` on
-`factual_tydiqa / kenari` posts `kappa = −0.094` — but that row is stable
+`factual_tydiqa / kenari` posts `kappa = −0.071` — but that row is stable
 (`0.975`), while the local judge's `factual / kenari` row has `kappa = 0.090` and
 is *not* (`0.790`, `unstable`). Two rows a reader would previously have ranked
 identically are now distinguishable.
@@ -329,14 +333,14 @@ The three regexes are the minimum set that closes the measured gaps; adding more
 units would widen the false-match surface for no corpus benefit.
 `test_normalize_still_rejects_genuine_misses` is the guard on that widening.
 
-After the fix the disagreement set on that cell is **7 rows over 7 distinct
-cases**, and the classifier splits it two ways. Three are the paraphrase case:
-the judge credited a correct answer the matcher rejects by construction — `Genin`
-for *"ninja kelas rendah yang hanya menjalankan misi kelas D"*,
-`kecepatan berlari supersonik` for *"berjalan pada kecepatan supersonik"*. Those
-stay wrong on purpose: fixing them needs a semantic matcher or a different ground
-truth, not a wider regex, and Ho et al. already quantify the cost of exact match
-on extractive QA.
+After the fix the disagreement set on that cell is **6 rows over 6 distinct
+cases** (the joiner fix in §11.3 removed the seventh), and the classifier splits it
+two ways. Two are the paraphrase case: the judge credited a correct answer the
+matcher rejects by construction — `Genin` for *"ninja kelas rendah yang hanya
+menjalankan misi kelas D"*, `kecepatan berlari supersonik` for *"berjalan pada
+kecepatan supersonik"*. Those stay wrong on purpose: fixing them needs a semantic
+matcher or a different ground truth, not a wider regex, and Ho et al. already
+quantify the cost of exact match on extractive QA.
 
 The other four are the reverse and are **judge misses, not matcher failures**: the
 `expected` string appears verbatim in the output and the matcher scores it `1.0`,
@@ -346,18 +350,18 @@ judge's stated reason is that the response "does not explicitly state Italy as t
 country". A reference-aware judge given `Italia` in its prompt missed `Italia` in
 the response. That is the failure mode §2 exists to prevent, and it is only
 visible because the pair rows carry `expected`, `output` and `reason` inline
-(§6). It is also why this cell's kappa is *negative* while `pabak = 0.650`: the
+(§6). It is also why this cell's kappa is *negative* while `pabak = 0.700`: the
 matcher is right four more times than the judge is.
 
 **The fix moved agreement up and kappa down, which is not a contradiction.**
 On `factual_tydiqa / kenari/qwen3-8-flash / kenari/deepseek-v4-1-flash`, `po` rose
-`0.775 → 0.825` across the fix and the re-run, while kappa fell `0.217 → −0.094`.
-Correcting the matcher raised the ground-truth pass rate to `0.925`, which raises
-chance agreement to `0.837` and deflates kappa past zero — the §4 prevalence
+`0.775 → 0.850` across the normalizer fixes, while kappa fell `0.217 → −0.071`.
+Correcting the matcher raised the ground-truth pass rate to `0.950`, which raises
+chance agreement to `0.860` and deflates kappa past zero — the §4 prevalence
 effect, now firing harder because the ground truth is *more* skewed than before.
-A kappa of `−0.094` alongside `po = 0.825` is the single least readable row in the
+A kappa of `−0.071` alongside `po = 0.850` is the single least readable row in the
 study, and it is entirely an artifact of prevalence. PABAK, which carries no
-prevalence term, sits at `0.650` and tracks the raw agreement. This is the
+prevalence term, sits at `0.700` and tracks the raw agreement. This is the
 clearest instance in the study of why kappa alone is not an agreement report.
 
 **One consequence worth flagging:** a half-point verdict sits exactly on the
@@ -411,27 +415,28 @@ statistic — stability of failure is still stability. Coverage is what `n` and
 Recording this is the point of the document — a design note that only lists
 strengths is marketing.
 
-1. **The rubric suites have no numeric ground truth.** `cultural`, `register` and
+1. **The rubric suites had no numeric ground truth.** `cultural`, `register` and
    `codemix` — 96 cases — declare `ground_truth_type: rubric` and carry no
-   `expected` value, so there is nothing to score a judge against. They are now
+   `expected` value, so there is nothing to score a judge against. They were
    calibrated on a different axis: **inter-judge agreement**, one row per judge
    pair, reported with the same kappa/PABAK/stability columns as the factual rows
    and labelled `vs <judge>` in the `vs` column so a reader cannot mistake them
-   for judge-vs-truth. What remains wrong is the axis itself — two judges agreeing
+   for judge-vs-truth. What was wrong was the axis itself — two judges agreeing
    says nothing about whether either is correct, and the multilingual-judge
    literature is unambiguous that reliability is language-conditional
    (Doğruöz et al.; Fu & Liu report mean Fleiss' κ ≈ 0.3 across 25 languages).
-   Authoring `expected` values for these 96 cases is the only way to close it,
-   and the labels would themselves be a single rater's judgment — the exact
-   reliability problem being measured.
+   Authoring labels for these 96 cases is the only way to close it, and the labels
+   would themselves be a single rater's judgment — the exact reliability problem
+   being measured. **§11.1 closes this and states the limitation it carries.**
 
-   The inter-judge result is worth stating plainly. Across the 18 rubric pair
-   rows, the two API judges agree with each other at a mean `kappa = 0.531` over
-   the four rows where kappa is defined (`test_retest = 0.980`,
-   `framing_agreement = 0.964`; the other two rows have `pe = 1.0`, where kappa is
-   undefined rather than zero), while any pair containing the local judge sits at
-   a mean `kappa = 0.015` (`0.924`, `0.798`). Four pairs are `unstable` and six
-   are `framing-sensitive` — every one of them a pair with the local judge.
+   The inter-judge result is worth recording, because it is what the closed
+   version is compared against. Across the 18 rubric pair rows, the two API judges
+   agree with each other at a mean `kappa = 0.531` over the four rows where kappa
+   is defined (`test_retest = 0.980`, `framing_agreement = 0.964`; the other two
+   rows have `pe = 1.0`, where kappa is undefined rather than zero), while any
+   pair containing the local judge sits at a mean `kappa = 0.015` (`0.924`,
+   `0.798`). Four pairs are `unstable` and six are `framing-sensitive` — every one
+   of them a pair with the local judge.
 
    Four of those 18 pairs are also `prevalence`, which is the honest reading of
    the rubric suites' ceiling. On `codemix / kenari` the two API judges pass 31
@@ -440,13 +445,14 @@ strengths is marketing.
    judge passes 0 of 32, so `pe = 1.0` and kappa is undefined rather than zero.
    Those suites need *harder* cases, not more of them.
 
-2. **Pairwise position bias is unmeasured.** `_judge` presents a single response
+2. **Pairwise position bias was unmeasured.** `_judge` presents a single response
    against a rubric, so pairwise position bias does not apply directly. The
    pointwise analogue is now measured: with `--repeats > 1` the rubric alternates
    between after the response (variant 0) and before it (variant 1), and
    `framing_agreement` reports how often the two framings reach the same
-   majority verdict. What is still untested is the pairwise form — two responses,
+   majority verdict. What was still untested is the pairwise form — two responses,
    order swapped — which needs a different judge contract (Shi et al.).
+   **§11.2 adds it and measures it.**
 
 3. **Test-retest reliability is measured, but only where `--repeats > 1`.** The
    study's published rows carry `test_retest`, the mean share of draws agreeing
@@ -456,31 +462,34 @@ strengths is marketing.
    rather than collapsed. The remaining gap is that `--repeats` is a study
    parameter, not a default: a single-pass run leaves both columns `-`.
 
-4. **The exact-match normalizer still cannot see paraphrase.** The three measured
-   gaps (unit aliases, unit language, superscript exponents) are fixed in
-   `_normalize`. What remains splits two ways. Three of the seven disagreements on
-   the worst cell are the paraphrase case — a valid answer exact match rejects by
-   construction. The other four are the opposite, and are the more useful finding:
-   the `expected` string appears verbatim in the output, the matcher scores it
-   `1.0`, and the judge returns `0.0`. `_normalize` is SQuAD-style plus unit
-   canonicalization; it does not canonicalize scripts or Indonesian affixes, and
-   closing the paraphrase gap needs a semantic matcher, not a wider regex. Closing
-   the judge-miss gap needs nothing from the matcher at all — it is a §2 failure,
-   visible only because the pair rows carry `expected`, `output` and `reason`
-   inline.
+4. **The exact-match normalizer still cannot see paraphrase — one row less so
+   than before.** The three measured gaps (unit aliases, unit language, superscript
+   exponents) are fixed in `_normalize`, and §11.3 closes a fourth: intra-word
+   joiners, which split `Al-Qur'an` into `al qur an`. What remains splits two ways.
+   Two of the six disagreements on the worst cell are the paraphrase case — a valid
+   answer exact match rejects by construction. The other four are the opposite, and
+   are the more useful finding: the `expected` string appears verbatim in the
+   output, the matcher scores it `1.0`, and the judge returns `0.0`. `_normalize`
+   is SQuAD-style plus unit canonicalization; it does not canonicalize scripts, and
+   closing the paraphrase gap needs a semantic matcher, not a wider regex. §11.3
+   records the affix-aware matcher that was written for it and **reverted**, with
+   the measured false-positive count that decided it. Closing the judge-miss gap
+   needs nothing from the matcher at all — it is a §2 failure, visible only because
+   the pair rows carry `expected`, `output` and `reason` inline.
 
 5. **`prevalence` cells are still published.** `low-n` is gone: the four
    hand-authored suites were grown to 32 cases each, so all 36 rows now carry
    `n >= 32` and no row is flagged for sample size. What replaces it as the
-   dominant caveat is `prevalence` — 10 of 36 rows. That is the honest limit of
-   what growing a suite can fix. The `factual` suite is the clearest case: the 22
-   new cases were written to be *harder* — multi-word and numeric answers rather
-   than one-word capitals — and they are harder for the small local subject
-   (`5/22` passed, against `6/10` on the old cases), but the API subject answers
-   all 22 correctly, so the suite pass rate rises `0.900 → 0.969` and kappa stays
-   pinned at `0.000` even though `po` improved `0.900 → 0.969`. `low-n` was a
-   coverage problem and is fixed; `prevalence` is a difficulty problem, and
-   difficulty is a property of the *subject–item* pair, not of the item alone.
+   dominant caveat is `prevalence` — 11 of 36 rows on the regenerated table. That is
+   the honest limit of what growing a suite can fix. The `factual` suite is the
+   clearest case: the 22 new cases were written to be *harder* — multi-word and
+   numeric answers rather than one-word capitals — and they are harder for the
+   small local subject (`5/22` passed, against `6/10` on the old cases), but the
+   API subject answers all 22 correctly, so the suite pass rate rises
+   `0.900 → 0.969` and kappa stays pinned at `0.000` even though `po` improved
+   `0.900 → 0.969`. `low-n` was a coverage problem and is fixed; `prevalence` is a
+   difficulty problem, and difficulty is a property of the *subject–item* pair, not
+   of the item alone.
 
 ---
 
@@ -608,6 +617,327 @@ API or infrastructure failure and returns `raw == ""`. So the deepeval path feed
 the same `judge_raw` field and the same "a failing judge does not inherit the
 previous verdict" guarantee as the native path, with no change to
 `score_with_judge`'s bookkeeping.
+
+---
+
+## 10. Judge quality is measured, not asserted
+
+`src/ideval/calibrate.py` — three claims that §1, §3 and §6 previously supported
+only in prose are now fields on `CalibrationReport`, computed by `run_calibration`
+from data it already collected. No new judge calls, no new dependency, and no
+existing field changed meaning, so the published 36-row table stays valid:
+`canary`, `draws`, `k03` and `k07` read `-` on it and populate on the next full
+run.
+
+### The canaries were never scored
+
+`canary_outcomes` keys off `reference_note` starting with `ADVERSARIAL` rather
+than a hardcoded id list, so §1's canaries are scored by any run that includes
+their suites. Scored, they fail. From the instrumentation run:
+
+| suite | case | judge | draws | pass/fail |
+|---|---|---|---|---|
+| cultural | `cult-018` | `kenari/deepseek-v4-1-flash` | `0.0 / 0.0 / 0.0` | caught |
+| cultural | `cult-018` | `ollama/qwen2.5:1.5b` | `1.0 / 0.0` | **passed** |
+| register | `reg-018` | `kenari/deepseek-v4-1-flash` | `0.0 / 0.0 / 0.0` | caught |
+| register | `reg-018` | `ollama/qwen2.5:1.5b` | `0.0 / 0.3 / 0.25` | caught |
+| codemix | `cmx-018` | `kenari/deepseek-v4-1-flash` | `0.2 / 0.2 / 0.1` | caught |
+| codemix | `cmx-018` | `ollama/qwen2.5:1.5b` | `0.8 / 1.0 / 0.7` | **passed** |
+
+The `cmx-018` row is the primary finding, and the published artifact corroborates
+it independently: there the local judge scores the case `0.7` on
+`kenari/qwen3-8-flash`'s output and `0.8` on its own, while both API judges stay
+at `0.0`–`0.2`. The case embeds a response that answers a code-mixed
+Indonesian–English request in pure formal English — it ignores the Indonesian half
+of the prompt entirely — and the local judge rewards it. This is §1's canary
+working as designed and finding what it was built to find: the instrument failing
+its own check, invisible in every published column because no column carried it.
+
+`cult-018` is the second, and it is a different failure mode. There the local
+judge returned `1.0` on one draw and `0.0` on the next: it passes an adversarial
+case *intermittently*. A single-pass run would have published whichever draw it
+happened to take. `register`'s canary is caught on every draw by both judges, so
+the local judge's problem is not "cannot read a canary" but "reads two of three
+unreliably". §8.1's inter-judge rows are the same judge on the same suites, and
+this is the mechanism behind them.
+
+The flag is what makes it visible in a table: `canary-fail` fires on the
+`cultural` and `codemix` pair rows and on neither `register` row, matching the
+per-case outcomes exactly.
+
+### Per-draw failure is now a field
+
+`draw_stats` returns `(draws attempted, draws that produced no verdict)`, where
+attempted counts `repeats` per case *the subject model answered* — a case the
+subject errored on never reached the judge, and counting it would report a subject
+failure as a judge failure. On `CalibrationReport` those are `draws` and
+`draw_failures`.
+
+The number §3 computed by hand is now read off the artifact. On the published
+36-row study the local judge failed `108` of `1464` draws (`7.4%`) while both API
+judges failed `0`; on the instrumentation run it failed `21` of `285` (`7.4%`),
+and `7` of `96` on the `factual` cell (`7.3%`). Three runs, the same rate to one
+decimal. Every one of those rows publishes `err = 0`, because `errors` counts
+cases and a case is an error only when *every* draw failed — which is exactly the
+conflation §3 warns about, and the reason the field was added rather than the
+column reinterpreted.
+
+The `draws` column is also the per-draw cost of `--repeats`, which is the input
+to §8.3's argument for keeping it a study parameter rather than a default. Making
+the cost visible is not a reason to reverse that decision.
+
+### The 0.5 threshold was a convention, and one row turns on it
+
+`build_report` and `build_inter_judge_report` now compute kappa at `0.3`, `0.5`
+and `0.7` in a single sweep, reporting the outer two as `kappa_t03`/`kappa_t07`
+and the middle as the unchanged `kappa`. `_flags` marks `threshold-sensitive` when
+the sweep changes sign — a kappa positive at one threshold and negative at another
+is a qualitative change in what the row claims, not a tuned tolerance. `0.0`
+counts as neither sign.
+
+In the published 36-row table exactly one row carries it, and it is worth naming:
+
+| suite | subject | pair | k03 | k05 | k07 |
+|---|---|---|---:|---:|---:|
+| codemix | `kenari/qwen3-8-flash` | `kenari/deepseek-v4-1-flash` vs `ollama/qwen2.5:1.5b` | −0.032 | −0.049 | 0.054 |
+
+The two API judges agreeing on the same suite sit at `0.652` (table §8.1) — so
+this row's sign is not a property of the suite, and not of either judge alone, but
+of where the pass/fail line falls relative to two judges' shared disagreement.
+Publishing `−0.049` alone would have implied the pair is worse than chance; the
+same observations at `0.7` say the opposite.
+
+The instrumentation run shows the mechanism in a judge-vs-truth cell. On `factual`
+the local judge reads `−0.058` at `0.3` and `0.5` but `0.133` at `0.7`, carrying
+`threshold-sensitive` alongside `unstable` and `framing-sensitive`. The reason is
+visible in the artifact: `fact-007` has ground truth `0.0` and draws
+`0.5 / 0.0 / 0.0`, so its first draw decides the label at `0.5` and drops out of
+the judge's pass set at `0.7`. One draw, on one case, moves the row's kappa across
+zero. That is the boundary §6 flagged as "a real source of instability in the
+kappa column" — now a flag on the row instead of a caveat in the prose.
+
+---
+
+## 11. Closing the four gaps §8 recorded
+
+`src/ideval/calibrate.py`, `src/ideval/runner.py`, `src/ideval/metrics/base.py` —
+§8 listed four things the study knew it got wrong. Three are now closed and one is
+partially closed with the remainder stated. The numbers below are read from the
+regenerated artifacts (`README.md`'s table, `results_pairwise.json`,
+`annotations/rubric_labels.jsonl`), not restated from the design that produced them.
+
+### The rubric suites are now judge-vs-truth, against single-rater labels
+
+`annotations/rubric_labels.jsonl` — 192 rows, one per `(suite, case_id, subject)`,
+carrying a `0.0`/`0.5`/`1.0` label and a `rater` field. `calibrate.load_labels`
+reads them and `run_calibration` takes `labels=` as its last parameter
+(`--annotations` on the CLI). A rubric suite now takes the judge-vs-truth path when
+any case carries a label for this subject, so the 18 rubric rows in the README read
+`vs = truth` instead of `vs <judge>`.
+
+**The unit is the response, not the case.** Two subjects answer the same prompt
+differently, so a per-case label would assert identical quality for two different
+texts. The three canaries are labelled `0.0` from their own `reference_note`, which
+already said "should score LOW".
+
+**The ground truth is read from the label map, never from `r.score`.** This is
+load-bearing, not stylistic. `score_with_judge` writes `r.score = scores[0]` for a
+non-scoreable case (`runner.py`), so a rubric suite that took the judge-vs-truth
+path while its cases stayed non-scoreable would feed each judge its own verdict
+back as ground truth and score it as perfect agreement with itself. Verified on the
+canary case: a `0.9` verdict in that arrangement contributes `(0.9, 0.9)` and
+inflates kappa to `1.000`. Reading gt from the label map makes that impossible — a
+case with no label contributes `None` and `pair_scores` drops it, shrinking `n`
+rather than inventing agreement.
+
+**Nothing in the suites moved.** `TestCase.scoreable` is read at 16 non-test sites,
+and `scripts/check_suites.py` fails any scoreable case in a non-`SCOREABLE` suite,
+so `ground_truth_type` stays `rubric` and no `expected` was added. Annotations are
+external precisely so `check_suites.py`, the suite files and
+`tests/test_core.py`'s rubric-suite test are all untouched. The offline gate still
+reads `OK: 6 suites, 248 cases, 3 canaries`, and the 18 `factual*` rows are
+byte-identical with and without `--labels`.
+
+The resulting rows, from the regenerated table:
+
+| suite | subject | judge | n | kappa | pabak | canary | flags |
+|---|---|---:|---:|---:|---:|---:|---|
+| `cultural` | `kenari/qwen3-8-flash` | `kenari/deepseek-v4-1-flash` | 32 | 0.207 | 0.625 | 0/1 | |
+| `cultural` | `kenari/qwen3-8-flash` | `kenari/glm-5-3-flash` | 32 | 0.475 | 0.875 | 0/1 | prevalence |
+| `cultural` | `kenari/qwen3-8-flash` | `ollama/qwen2.5:1.5b` | 32 | 0.080 | 0.188 | 0/1 | unstable, framing-sensitive |
+| `cultural` | `ollama/qwen2.5:1.5b` | `kenari/deepseek-v4-1-flash` | 32 | 0.000 | 0.812 | 0/1 | prevalence |
+| `cultural` | `ollama/qwen2.5:1.5b` | `kenari/glm-5-3-flash` | 32 | 0.000 | 0.812 | 0/1 | prevalence |
+| `cultural` | `ollama/qwen2.5:1.5b` | `ollama/qwen2.5:1.5b` | 32 | −0.053 | 0.000 | 0/1 | self-judge, unstable, framing-sensitive, threshold-sensitive |
+| `register` | `kenari/qwen3-8-flash` | `kenari/deepseek-v4-1-flash` | 32 | 0.207 | 0.625 | 0/1 | |
+| `register` | `kenari/qwen3-8-flash` | `kenari/glm-5-3-flash` | 32 | 0.176 | 0.562 | 0/1 | |
+| `register` | `kenari/qwen3-8-flash` | `ollama/qwen2.5:1.5b` | 32 | 0.297 | 0.750 | 0/1 | prevalence |
+| `register` | `ollama/qwen2.5:1.5b` | `kenari/deepseek-v4-1-flash` | 32 | 0.000 | −0.062 | 0/1 | |
+| `register` | `ollama/qwen2.5:1.5b` | `kenari/glm-5-3-flash` | 32 | 0.000 | −0.062 | 0/1 | |
+| `register` | `ollama/qwen2.5:1.5b` | `ollama/qwen2.5:1.5b` | 32 | 0.055 | 0.062 | 0/1 | self-judge, unstable, framing-sensitive, threshold-sensitive |
+| `codemix` | `kenari/qwen3-8-flash` | `kenari/deepseek-v4-1-flash` | 32 | 1.000 | 1.000 | 0/1 | prevalence |
+| `codemix` | `kenari/qwen3-8-flash` | `kenari/glm-5-3-flash` | 32 | 0.652 | 0.938 | 0/1 | prevalence |
+| `codemix` | `kenari/qwen3-8-flash` | `ollama/qwen2.5:1.5b` | 32 | −0.049 | 0.750 | **1/1** | prevalence, canary-fail |
+| `codemix` | `ollama/qwen2.5:1.5b` | `kenari/deepseek-v4-1-flash` | 32 | 0.029 | −0.312 | 0/1 | |
+| `codemix` | `ollama/qwen2.5:1.5b` | `kenari/glm-5-3-flash` | 32 | 0.059 | −0.250 | 0/1 | |
+| `codemix` | `ollama/qwen2.5:1.5b` | `ollama/qwen2.5:1.5b` | 32 | 0.011 | 0.312 | **1/1** | self-judge, canary-fail |
+
+**What this replaced, and what it cost.** The old rubric rows answered "do two
+judges agree with each other". These answer "does a judge agree with one rater",
+which is the question §8.1 said was the only way to close the gap. The mean kappa
+is `0.234` across the 12 API-judge rows and `0.057` across the 6 local-judge rows —
+lower than the inter-judge `0.531` the two API judges posted against each other,
+which is the expected direction: agreement between two judges drawn from the same
+model family overstates agreement with a third party's judgment.
+
+**The labels are the new single point of failure, and that is the honest reading.**
+Every row carries `rater: draft:assistant` — one drafting pass, no independent
+second rater. So this step trades "two judges agree" for "one judge agrees with one
+rater", and it does not make the rubric rows validated. The label distribution is
+skewed in a way that matters: `codemix` labels pass `0.828` of the time, so the two
+API rows there carry `prevalence` and their kappa is the least readable number in
+the block. The `rater` field is the hook for a real second pass
+(`review:<name>`), and until a row carries one, the limitation stands as stated
+here rather than as an implication that the labels are ground truth in the sense
+the `factual` suites' `expected` values are.
+
+### Pairwise position bias is measured, and two of three judges show none
+
+`src/ideval/runner.py` — `_judge_pair` presents two responses under a fixed rubric
+and swaps which is `A`; `metrics/base.PairVerdict` + `parse_pair_verdict` are the
+pairwise contract (same tolerant shape as `parse_verdict`, keyed on `winner`, and
+rejecting anything that is not exactly `A` or `B`); `calibrate.pairwise_flip_rate`
+is the statistic. `scripts/pairwise_probe.py` builds pairs from the stored
+artifact: for a `factual` case, the API judge passed one subject's output and
+failed the other's, so the pair has a known better response — a sanity anchor, not
+the measurement.
+
+`order` and `framing` are **separate arguments** to `_judge_pair`. Folding them into
+one would swap the responses when the caller meant to move the rubric, which
+destroys the comparison the probe exists to make; the probe holds `order` fixed and
+alternates `framing` across its `--repeats`. Each draw's verdict is resolved from
+its letter back to the *response* it named, so the two orders are compared on
+content identity — a position-invariant judge returns the same response both times,
+not the same letter.
+
+Result, `--suite factual --repeats 2`, 21 pairs, from `results_pairwise.json`:
+
+| judge | pairs judged in both orders | flip rate | picked the known-better response | unparsed draws |
+|---|---:|---:|---:|---:|
+| `kenari/deepseek-v4-1-flash` | 20 | **0.000** | 1.000 | 0 |
+| `kenari/glm-5-3-flash` | 21 | **0.000** | 1.000 | 0 |
+| `ollama/qwen2.5:1.5b` | 7 | **0.571** | 0.571 | 7 |
+
+Both API judges picked the known-better response on every pair and never changed
+their answer when the responses were swapped. That is a `0.0` flip rate, and it is
+a **valid result, not a null one**: it says the pairwise form of position bias does
+not fire on this judge, this suite and this pair construction, which is the
+question §8.2 left open. One `deepseek` pair (`fact-007`) is excluded because its
+two forward draws split `A`/`B` and no majority exists — the same `fact-007` that
+§10 shows carrying a `0.5` first draw, so the exclusion is the boundary case
+already documented rather than a new anomaly.
+
+The local judge is the outlier again, and worse here than on the pointwise axis.
+It flipped on 4 of the 7 pairs it could answer at all (`0.571`), 14 pairs had no
+majority under either order, and 7 individual draws did not parse. So the
+`framing-sensitive` flag on its rows understates the problem: on the pairwise
+protocol it is both unreliable *and* order-dependent, and its `0.571` better-share
+means it is close to a coin flip on which of two responses is better even when one
+was selected by a competent judge.
+
+**This is a separate protocol, not a README column.** A flip rate needs two
+responses per item; the 36-row table has one response per case per subject, so
+there is no column of it that would mean anything. It is reported here and in
+`docs/calibration-study.md` instead.
+
+### The `tydiqa-019` disagreement was a normalizer gap, not paraphrase
+
+`src/ideval/runner.py` — `_PUNCT` replaces every non-word character with a space,
+so an intra-word apostrophe or hyphen split one token into two:
+
+```
+_normalize("Al-Qur'an")  ->  "al qur an"
+_normalize("Alquran")    ->  "alquran"
+```
+
+`tydiqa-019`'s expected value is `salinan pertama Alquran`, and one subject wrote
+`Al-Qur'an`. The matcher scored `0.0` on a correct answer, and §6 had classified
+that row as the paraphrase case — a semantic-matcher problem. It was not: it was a
+tokenization bug, and `_JOINER` (`(?<=\w)['\u2019\-](?=\w)`, applied before
+`_PUNCT`) closes it by deleting joiners between word characters.
+
+Measured blast radius on all 888 scoreable pair rows:
+
+| | rows | cases | direction |
+|---|---:|---|---|
+| pair rows whose recomputed `gt` differs from the stored `gt` | 3 | `tydiqa-019` only | `0.0 → 1.0` |
+| of those, genuine matches | 3 | `tydiqa-019` | the output contains the expected answer |
+| false positives (a `0.0` row moved to `1.0`) | **0** | — | — |
+
+Three rows, one case, all in the correct direction, nothing else in the corpus
+moved, and the eight pinned `_match_exact`/`_normalize` tests in
+`tests/test_core.py` all hold at their existing values. That last point is the
+guard: `_JOINER` must not make `test_normalize_still_rejects_genuine_misses` start
+matching.
+
+### The affix-aware containment half was written, measured, and reverted
+
+The plan for the same step also replaced `_match_exact`'s substring test with
+affix-aware token containment, so `berlari` would match `berjalan`-class
+morphology: strip the Indonesian affix set (`meN-`/`men-`/`mem-`/`ber-`/`ter-`/
+`di-`/`pe-`, `-kan`/`-nya`/`-an`/`-i`) from both sides and require every stripped
+expected token to be present in the stripped output set.
+
+It was implemented, audited, and **reverted**. The audit is what decided it. The
+rows below are the affix half's *additions* on top of the joiner fix — the joiner's
+own three `tydiqa-019` rows are excluded:
+
+| affix half's added flips | rows | cases | verdict |
+|---|---:|---|---|
+| pair rows moved to `1.0` from a stored `0.0` | 9 | `tydiqa-015`, `tydiqa-022`, `tydiqa-025` | — |
+| of those, **false positives** | 6 | `tydiqa-015`, `tydiqa-022` | wrong answer scored `1.0` |
+| of those, defensible | 3 | `tydiqa-025` | right answer, broken tokenization |
+
+The false positives are the disqualifying part. `tydiqa-015`'s expected value is
+`keriting merah`; the response offers *green* curly chilis (`Cabe Keriting Hijau`)
+and mentions `merah` elsewhere in the paragraph, so bag-of-words containment
+passes while the answer is wrong. `tydiqa-022`'s expected value is `agama Jawa`;
+the response says `bahasa Jawa`. Both flipped to `1.0`. The plan's criterion was
+explicit — any non-zero false-positive count reverts the half — so the affix
+matcher is not in the code.
+
+Two mechanisms made it fail, and both are worth recording because the idea is
+attractive enough to be re-proposed:
+
+- **Bag-of-words containment discards word order and adjacency.** Substring
+  containment at least required the expected phrase to appear contiguously; a token
+  set does not, so `agama` + `Jawa` anywhere in a long response is enough.
+- **The strip is not a stemmer.** The `_MIN_STEM` guard prevented the shortest
+  stems but not the wrong ones: `merah → rah`, `pertama → rtama`, `berjalan → jal`.
+  `tydiqa-025`'s flip is only "defensible" because `jal` happened to also appear,
+  which is luck rather than morphology.
+
+**§8.4 therefore stays open, minus one row.** The paraphrase gap is real: on the
+worst cell, 2 of the 6 remaining disagreements are the matcher rejecting a correct
+answer (`Genin` for *"ninja kelas rendah…"*, `kecepatan berlari supersonik` for
+*"berjalan pada kecepatan supersonik"*). Closing it needs a semantic matcher or a
+different ground truth, not a wider regex or a token set — which is what the
+reverted experiment demonstrates rather than asserts. The joiner fix is kept
+because it is a different kind of change: it repairs tokenization without loosening
+what counts as a match.
+
+### The README table was regenerated offline
+
+`README.md`'s table was rebuilt from `results_calibration.json` by
+`scripts/replay_calibration.py`, not by a new `calibrate` run, and the 13
+pre-existing value columns reproduce row for row. `adapters.chat` pins no
+temperature (§7), so a fresh run would judge different text and every number would
+move for reasons unrelated to this change; a replay is the only way to change what
+the table *means* while holding what it *measures* fixed. The judge verdicts in the
+table are the M2 study's — only the ground truth for the 18 rubric rows is new.
+The replay asserts that recomputing `gt` from each row's stored `output` and
+`expected` reproduces the stored `gt`, and exits non-zero otherwise; `--match-audit`
+switches that assertion to a report, which is how the two blast-radius tables above
+were measured.
 
 ---
 

@@ -57,44 +57,44 @@ Bahasa Indonesia. `ideval calibrate` measures judge-vs-ground-truth agreement
 the results table here.
 
 <!-- calibration:start -->
-| judge | vs | subject | suite | n | kappa | pabak | retest | frame | precision | recall | spearman | err | flags |
-|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | factual | 32 | 0.000 | 0.938 | 0.990 | 1.000 | 0.969 | 1.000 | 1.000 | 0 | prevalence |
-| kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | factual | 32 | 0.000 | 0.938 | 1.000 | 1.000 | 0.969 | 1.000 | 1.000 | 0 | prevalence |
-| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | factual | 32 | 0.090 | 0.250 | 0.790 | 0.581 | 1.000 | 0.613 | 0.236 | 0 | unstable, framing-sensitive |
-| kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | factual | 32 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 0.993 | 0 |  |
-| kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | factual | 32 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 0.993 | 0 |  |
-| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | factual | 32 | 0.584 | 0.625 | 0.802 | 0.562 | 0.727 | 0.727 | 0.539 | 0 | self-judge, unstable, framing-sensitive |
-| kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | factual_indommlu | 72 | 1.000 | 1.000 | 0.981 | 0.944 | 1.000 | 1.000 | 1.000 | 8 |  |
-| kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | factual_indommlu | 72 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 8 |  |
-| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | factual_indommlu | 72 | 0.118 | 0.056 | 0.807 | 0.571 | 0.759 | 0.449 | 0.157 | 8 | unstable, framing-sensitive |
-| kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | factual_indommlu | 80 | 1.000 | 1.000 | 0.975 | 0.925 | 1.000 | 1.000 | 1.000 | 0 |  |
-| kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | factual_indommlu | 80 | 0.968 | 0.975 | 0.996 | 1.000 | 0.955 | 1.000 | 0.983 | 0 |  |
-| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | factual_indommlu | 80 | 0.096 | 0.225 | 0.756 | 0.397 | 0.321 | 0.429 | 0.118 | 0 | self-judge, unstable, framing-sensitive |
-| kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | factual_tydiqa | 40 | -0.094 | 0.650 | 0.975 | 0.925 | 0.917 | 0.892 | -0.095 | 0 | prevalence |
-| kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | factual_tydiqa | 40 | -0.039 | 0.800 | 1.000 | 1.000 | 0.923 | 0.973 | -0.046 | 0 | prevalence |
-| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | factual_tydiqa | 40 | -0.032 | 0.100 | 0.808 | 0.487 | 0.913 | 0.568 | -0.086 | 0 | unstable, framing-sensitive |
-| kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | factual_tydiqa | 40 | 0.452 | 0.500 | 0.967 | 0.925 | 0.778 | 0.840 | 0.455 | 0 |  |
-| kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | factual_tydiqa | 40 | 0.600 | 0.650 | 0.975 | 0.925 | 0.800 | 0.960 | 0.672 | 0 |  |
-| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | factual_tydiqa | 40 | 0.309 | 0.300 | 0.825 | 0.500 | 0.789 | 0.600 | 0.256 | 0 | self-judge, unstable, framing-sensitive |
-| kenari/deepseek-v4-1-flash | kenari/glm-5-3-flash | kenari/qwen3-8-flash | cultural | 32 | 0.079 | 0.500 | 0.948 | 0.875 | 0.920 | 0.793 | 0.553 | 0 |  |
-| kenari/deepseek-v4-1-flash | ollama/qwen2.5:1.5b | kenari/qwen3-8-flash | cultural | 32 | 0.126 | 0.188 | 0.846 | 0.609 | 0.600 | 0.833 | 0.222 | 0 | unstable, framing-sensitive |
-| kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | kenari/qwen3-8-flash | cultural | 32 | 0.235 | 0.312 | 0.867 | 0.672 | 0.621 | 1.000 | 0.240 | 0 | unstable, framing-sensitive |
-| kenari/deepseek-v4-1-flash | kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | cultural | 32 | - | 1.000 | 0.995 | 0.984 | - | - | 0.598 | 0 | prevalence |
-| kenari/deepseek-v4-1-flash | ollama/qwen2.5:1.5b | ollama/qwen2.5:1.5b | cultural | 32 | 0.000 | 0.062 | 0.885 | 0.672 | - | 0.000 | 0.184 | 0 | unstable, framing-sensitive, self-judge |
-| kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | ollama/qwen2.5:1.5b | cultural | 32 | 0.000 | 0.062 | 0.880 | 0.656 | - | 0.000 | -0.004 | 0 | unstable, framing-sensitive, self-judge |
-| kenari/deepseek-v4-1-flash | kenari/glm-5-3-flash | kenari/qwen3-8-flash | register | 32 | 0.739 | 0.812 | 0.953 | 0.953 | 0.920 | 0.958 | 0.745 | 0 |  |
-| kenari/deepseek-v4-1-flash | ollama/qwen2.5:1.5b | kenari/qwen3-8-flash | register | 32 | -0.019 | 0.375 | 0.938 | 0.875 | 0.840 | 0.778 | -0.163 | 0 |  |
-| kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | kenari/qwen3-8-flash | register | 32 | -0.048 | 0.312 | 0.953 | 0.891 | 0.833 | 0.741 | -0.138 | 0 |  |
-| kenari/deepseek-v4-1-flash | kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | register | 32 | - | 1.000 | 0.995 | 1.000 | - | - | 0.685 | 0 | prevalence |
-| kenari/deepseek-v4-1-flash | ollama/qwen2.5:1.5b | ollama/qwen2.5:1.5b | register | 32 | 0.000 | -0.125 | 0.909 | 0.742 | - | 0.000 | -0.011 | 0 | framing-sensitive, self-judge |
-| kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | ollama/qwen2.5:1.5b | register | 32 | 0.000 | -0.125 | 0.903 | 0.742 | - | 0.000 | -0.254 | 0 | framing-sensitive, self-judge |
-| kenari/deepseek-v4-1-flash | kenari/glm-5-3-flash | kenari/qwen3-8-flash | codemix | 32 | 0.652 | 0.938 | 1.000 | 1.000 | 0.968 | 1.000 | 0.590 | 0 | prevalence |
-| kenari/deepseek-v4-1-flash | ollama/qwen2.5:1.5b | kenari/qwen3-8-flash | codemix | 32 | -0.049 | 0.750 | 0.979 | 0.938 | 0.903 | 0.966 | 0.143 | 0 | prevalence |
-| kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | kenari/qwen3-8-flash | codemix | 32 | -0.081 | 0.688 | 0.979 | 0.938 | 0.900 | 0.931 | -0.191 | 0 | prevalence |
-| kenari/deepseek-v4-1-flash | kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | codemix | 32 | 0.652 | 0.938 | 0.990 | 0.969 | 1.000 | 0.500 | 0.711 | 0 | prevalence |
-| kenari/deepseek-v4-1-flash | ollama/qwen2.5:1.5b | ollama/qwen2.5:1.5b | codemix | 32 | 0.007 | -0.750 | 0.971 | 0.922 | 1.000 | 0.034 | -0.008 | 0 | self-judge |
-| kenari/glm-5-3-flash | ollama/qwen2.5:1.5b | ollama/qwen2.5:1.5b | codemix | 32 | 0.014 | -0.688 | 0.971 | 0.922 | 1.000 | 0.069 | -0.169 | 0 | self-judge |
+| judge | vs | subject | suite | n | kappa | pabak | retest | frame | precision | recall | spearman | err | canary | draws | k03 | k07 | flags |
+|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | factual | 32 | 0.000 | 0.938 | 0.990 | 1.000 | 0.969 | 1.000 | 1.000 | 0 | - | 0/96 | 0.000 | 1.000 | prevalence |
+| kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | factual | 32 | 0.000 | 0.938 | 1.000 | 1.000 | 0.969 | 1.000 | 1.000 | 0 | - | 0/96 | 0.000 | 1.000 | prevalence |
+| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | factual | 32 | 0.090 | 0.250 | 0.790 | 0.581 | 1.000 | 0.613 | 0.236 | 0 | - | 6/96 | 0.102 | 0.090 | unstable, framing-sensitive |
+| kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | factual | 32 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 0.993 | 0 | - | 0/96 | 1.000 | 0.929 |  |
+| kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | factual | 32 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 0.993 | 0 | - | 0/96 | 1.000 | 1.000 |  |
+| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | factual | 32 | 0.584 | 0.625 | 0.802 | 0.562 | 0.727 | 0.727 | 0.539 | 0 | - | 6/96 | 0.525 | 0.584 | self-judge, unstable, framing-sensitive |
+| kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | factual_indommlu | 72 | 1.000 | 1.000 | 0.981 | 0.944 | 1.000 | 1.000 | 1.000 | 8 | - | 0/216 | 1.000 | 1.000 |  |
+| kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | factual_indommlu | 72 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 8 | - | 0/216 | 1.000 | 1.000 |  |
+| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | factual_indommlu | 72 | 0.118 | 0.056 | 0.807 | 0.571 | 0.759 | 0.449 | 0.157 | 8 | - | 23/216 | 0.118 | 0.167 | unstable, framing-sensitive |
+| kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | factual_indommlu | 80 | 1.000 | 1.000 | 0.975 | 0.925 | 1.000 | 1.000 | 1.000 | 0 | - | 0/240 | 1.000 | 1.000 |  |
+| kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | factual_indommlu | 80 | 0.968 | 0.975 | 0.996 | 1.000 | 0.955 | 1.000 | 0.983 | 0 | - | 0/240 | 0.968 | 1.000 |  |
+| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | factual_indommlu | 80 | 0.096 | 0.225 | 0.756 | 0.397 | 0.321 | 0.429 | 0.118 | 0 | - | 23/240 | 0.096 | 0.123 | self-judge, unstable, framing-sensitive |
+| kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | factual_tydiqa | 40 | -0.071 | 0.700 | 0.975 | 0.925 | 0.944 | 0.895 | -0.076 | 0 | - | 0/120 | -0.071 | -0.071 | prevalence |
+| kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | factual_tydiqa | 40 | -0.034 | 0.850 | 1.000 | 1.000 | 0.949 | 0.974 | -0.037 | 0 | - | 0/120 | -0.034 | -0.034 | prevalence |
+| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | factual_tydiqa | 40 | 0.017 | 0.150 | 0.808 | 0.487 | 0.957 | 0.579 | 0.011 | 0 | - | 7/120 | 0.017 | 0.005 | unstable, framing-sensitive |
+| kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | factual_tydiqa | 40 | 0.452 | 0.500 | 0.967 | 0.925 | 0.778 | 0.840 | 0.455 | 0 | - | 0/120 | 0.452 | 0.452 |  |
+| kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | factual_tydiqa | 40 | 0.600 | 0.650 | 0.975 | 0.925 | 0.800 | 0.960 | 0.672 | 0 | - | 0/120 | 0.652 | 0.680 |  |
+| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | factual_tydiqa | 40 | 0.309 | 0.300 | 0.825 | 0.500 | 0.789 | 0.600 | 0.256 | 0 | - | 6/120 | 0.309 | 0.229 | self-judge, unstable, framing-sensitive |
+| kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | cultural | 32 | 0.207 | 0.625 | 0.927 | 0.812 | 1.000 | 0.806 | 0.580 | 0 | 0/1 | 0/96 | 0.368 | 0.535 |  |
+| kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | cultural | 32 | 0.475 | 0.875 | 0.969 | 0.938 | 1.000 | 0.935 | 0.390 | 0 | 0/1 | 0/96 | 1.000 | 0.304 | prevalence |
+| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | cultural | 32 | 0.080 | 0.188 | 0.766 | 0.406 | 1.000 | 0.581 | 0.328 | 0 | 0/1 | 8/96 | 0.207 | 0.139 | unstable, framing-sensitive |
+| kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | cultural | 32 | 0.000 | 0.812 | 1.000 | 1.000 | - | 0.000 | 0.424 | 0 | 0/1 | 0/96 | 0.264 | - | prevalence |
+| kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | cultural | 32 | 0.000 | 0.812 | 0.990 | 0.969 | - | 0.000 | 0.371 | 0 | 0/1 | 0/96 | 0.351 | - | prevalence |
+| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | cultural | 32 | -0.053 | 0.000 | 0.771 | 0.344 | 0.067 | 0.333 | -0.083 | 0 | 0/1 | 3/96 | 0.003 | 0.000 | self-judge, unstable, framing-sensitive, threshold-sensitive |
+| kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | register | 32 | 0.207 | 0.625 | 0.938 | 0.938 | 1.000 | 0.806 | 0.387 | 0 | 0/1 | 0/96 | 0.297 | 0.162 |  |
+| kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | register | 32 | 0.176 | 0.562 | 0.969 | 0.969 | 1.000 | 0.774 | 0.338 | 0 | 0/1 | 0/96 | 0.245 | 0.096 |  |
+| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | register | 32 | 0.297 | 0.750 | 0.938 | 0.812 | 1.000 | 0.871 | 0.134 | 0 | 0/1 | 8/96 | 0.000 | 0.191 | prevalence |
+| kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | register | 32 | 0.000 | -0.062 | 1.000 | 1.000 | - | 0.000 | 0.292 | 0 | 0/1 | 0/96 | 0.111 | 0.000 |  |
+| kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | register | 32 | 0.000 | -0.062 | 0.990 | 1.000 | - | 0.000 | 0.361 | 0 | 0/1 | 0/96 | 0.111 | 0.000 |  |
+| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | register | 32 | 0.055 | 0.062 | 0.817 | 0.484 | 0.556 | 0.588 | 0.193 | 0 | 0/1 | 8/96 | -0.045 | 0.071 | self-judge, unstable, framing-sensitive, threshold-sensitive |
+| kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | codemix | 32 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 0.325 | 0 | 0/1 | 0/96 | 1.000 | 0.652 | prevalence |
+| kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | codemix | 32 | 0.652 | 0.938 | 1.000 | 1.000 | 1.000 | 0.968 | 0.324 | 0 | 0/1 | 0/96 | 1.000 | 0.475 | prevalence |
+| ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | codemix | 32 | -0.049 | 0.750 | 0.958 | 0.875 | 0.966 | 0.903 | -0.020 | 0 | 1/1 | 3/96 | -0.032 | -0.061 | prevalence, canary-fail |
+| kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | codemix | 32 | 0.029 | -0.312 | 0.990 | 0.969 | 1.000 | 0.045 | 0.430 | 0 | 0/1 | 0/96 | 0.090 | - |  |
+| kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | codemix | 32 | 0.059 | -0.250 | 0.990 | 0.969 | 1.000 | 0.091 | 0.406 | 0 | 0/1 | 0/96 | 0.158 | - |  |
+| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | codemix | 32 | 0.011 | 0.312 | 0.953 | 0.875 | 0.690 | 0.909 | 0.008 | 0 | 1/1 | 7/96 | 0.133 | 0.000 | self-judge, canary-fail |
 <!-- calibration:end -->
 
 The `flags` column marks cells that cannot be read at face value: `low-n`
@@ -102,15 +102,43 @@ The `flags` column marks cells that cannot be read at face value: `low-n`
 (`pe >= 0.80`, where kappa collapses regardless of how well the judge agrees),
 `self-judge` (subject == judge, which is confounded by self-preference bias),
 `unstable` (`test_retest < 0.90`, the judge does not agree with itself run to
-run), and `framing-sensitive` (`framing_agreement < 0.80`, moving the rubric
-changes the verdict). `pabak` is `2·po − 1` and carries no prevalence term, so it
-stays readable where kappa does not.
+run), `framing-sensitive` (`framing_agreement < 0.80`, moving the rubric changes
+the verdict), `canary-fail` (the judge passed an adversarial case that was written
+to be scored `0.0`), and `threshold-sensitive` (the kappa sweep at `0.3`/`0.5`/`0.7`
+changes sign, so the row's claim depends on where the pass/fail line is drawn).
+`pabak` is `2·po − 1` and carries no prevalence term, so it stays readable where
+kappa does not.
 
 `retest` and `frame` are the two reliability axes, measured with `--repeats N`:
 every case is judged `N` times, alternating the rubric's position relative to the
 response. `retest` is the mean share of draws agreeing with their item's majority
 label; `frame` is how often the two framings reach the same majority verdict.
 Both render `-` on a single-pass run.
+
+`canary` is the adversarial-case column: `passed/attempted` for the cases whose
+`reference_note` starts with `ADVERSARIAL`, where a *pass* is the failure the case
+exists to catch. The three canaries are `cult-018`, `reg-018` and `cmx-018`; the
+factual suites carry none, so their cells render `-`. `draws` is
+`unparsed/attempted` verdicts — per-draw, not per-case, which is why a row can show
+`err = 0` (no case failed on *every* draw) beside a non-zero `draws`. `k03`/`k07`
+repeat the row's kappa at `0.3` and `0.7` so a reader can see whether the sign is an
+artifact of the `0.5` convention; `-` means kappa is undefined there (`pe = 1.0`).
+
+**The rubric rows are judge-vs-truth against single-rater labels.** `cultural`,
+`register` and `codemix` have no `expected` value, so round 1 could only calibrate
+them by comparing judges with each other. `annotations/rubric_labels.jsonl` now
+supplies a `0.0`/`0.5`/`1.0` label per (suite, case, subject) — 96 cases x 2
+subjects — and those rows read `vs = truth` against it. The labels are one rater's
+judgment (`rater: draft:assistant`), so this replaces "two judges agree" with "one
+judge agrees with one rater", and the labels become the new single point of
+failure. [`docs/design-notes.md`](docs/design-notes.md) §11 states the limitation
+and reports the resulting kappa.
+
+**The table was regenerated offline**, from the stored `results_calibration.json`
+via `scripts/replay_calibration.py`, not by a new `calibrate` run: `adapters.chat`
+pins no temperature, so a fresh run would judge different text and every number
+would move for reasons unrelated to this change. The judge verdicts in the table
+are the M2 study's; only the ground-truth column for the 18 rubric rows is new.
 
 [`docs/calibration-study.md`](docs/calibration-study.md) is the write-up: the
 design, the kappa-collapse rows, the reliability gap between the API judges and
