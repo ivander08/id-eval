@@ -7,11 +7,13 @@ from pathlib import Path
 from rich.progress import track
 
 from .adapters import chat, make_client
-from .metrics.base import SCORE_CONTRACT, JudgeVerdict, parse_verdict
+from .metrics.base import (PAIR_CONTRACT, SCORE_CONTRACT, JudgeVerdict, PairVerdict,
+                           parse_pair_verdict, parse_verdict)
 from .metrics import rubric_for
 from .schema import EvalResult, TestCase, load_suite
 
 _PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
+_JOINER = re.compile(r"(?<=\w)['\u2019\-](?=\w)")
 _SPACES = re.compile(r"\s+")
 _CHOICE = re.compile(r"(?:^|\W)([A-E])(?=[\W_]|$)")
 
@@ -27,8 +29,13 @@ _UNITS = [
 
 def _normalize(text: str) -> str:
     """Lowercase, canonicalize superscripts and units, strip punctuation,
-    collapse whitespace (SQuAD-style plus unit canonicalization)."""
+    collapse whitespace (SQuAD-style plus unit canonicalization).
+
+    Intra-word joiners (apostrophes and hyphens between word characters) are
+    deleted before punctuation stripping, so `Al-Qur'an` and `Alquran` normalize
+    to the same token instead of splitting into `al qur an`."""
     text = text.lower().translate(_SUPERSCRIPT)
+    text = _JOINER.sub("", text)
     text = _PUNCT.sub(" ", text)
     text = _SPACES.sub(" ", text)
     for pattern, replacement in _UNITS:
@@ -176,3 +183,31 @@ def _judge(client, model_id: str, case: TestCase, output: str,
     except Exception:  # noqa: BLE001
         return None, ""
     return parse_verdict(raw), raw
+
+
+def _judge_pair(client, model_id: str, case: TestCase, output_a: str, output_b: str,
+                variant: int = 0, framing: int = 0) -> tuple[PairVerdict | None, str]:
+    """(verdict, raw), mirroring `_judge`'s failure contract. `variant` controls
+    which response is presented as A: variant 0 -> (output_a, output_b), variant 1
+    -> (output_b, output_a). The caller compares the two orders to detect position
+    bias, so this function must not itself correct for position.
+
+    `framing` is the second, independent axis: 0 puts the rubric after the two
+    responses, 1 before them, exactly as `_judge`'s variant does for one response.
+    Order and framing are separate arguments because a caller measuring position
+    bias has to hold the order fixed while framing alternates — folding them into
+    one argument would swap the responses when the caller meant to move the rubric.
+
+    This is the pairwise protocol §8.2 said was untested. It is a different
+    experiment from the pointwise `frame` column: that one moves the rubric around
+    a single response, this one swaps two responses under a fixed rubric."""
+    rubric = rubric_for(case.suite).format(reference=case.expected or "-", contract=PAIR_CONTRACT)
+    first, second = (output_a, output_b) if variant % 2 == 0 else (output_b, output_a)
+    head = (f"Context: {case.context or '-'}\n\nPrompt: {case.input}\n\n"
+            f"Response A:\n{first}\n\nResponse B:\n{second}")
+    prompt = f"{head}\n\n{rubric}" if framing % 2 == 0 else f"{rubric}\n\n{head}"
+    try:
+        raw = chat(client, model_id, prompt)
+    except Exception:  # noqa: BLE001
+        return None, ""
+    return parse_pair_verdict(raw), raw
