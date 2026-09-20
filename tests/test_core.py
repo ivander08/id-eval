@@ -533,6 +533,100 @@ def test_label_review_emit_writes_a_section_per_unit_and_marks_truncation(tmp_pa
     assert text.count("**your label:** ______") == 3
 
 
+def _check_labels():
+    """scripts/ is not a package; load the label gate by path."""
+    import importlib.util
+    path = Path(__file__).resolve().parents[1] / "scripts" / "check_labels.py"
+    spec = importlib.util.spec_from_file_location("check_labels", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _labels_file(tmp_path, rows):
+    import json as _json
+    path = tmp_path / "labels.jsonl"
+    path.write_text("# provenance header\n" +
+                    "".join(_json.dumps(r) + "\n" for r in rows),
+                    encoding="utf-8", newline="")
+    return path
+
+
+def _valid_rows(suite, subjects=("a/model",), label=1.0):
+    # a canary is 0.0 by definition, so a file built here is otherwise clean
+    return [{"suite": suite, "case_id": c.id, "subject": s,
+             "label": 0.0 if (c.reference_note or "").startswith("ADVERSARIAL") else label,
+             "rater": "review:assistant", "note": "ok"}
+            for s in subjects for c in load_suite(suite)]
+
+
+def test_check_labels_accepts_the_committed_file():
+    check_labels = _check_labels()
+    path = Path(__file__).resolve().parents[1] / "annotations" / "rubric_labels.jsonl"
+    failures, summaries = check_labels.check(path)
+    assert failures == []
+    assert len(summaries) == 3
+
+
+def test_check_labels_rejects_an_off_scale_label(tmp_path):
+    check_labels = _check_labels()
+    rows = _valid_rows("cultural")
+    rows[0]["label"] = 0.7
+    failures, _ = check_labels.check(_labels_file(tmp_path, rows))
+    assert any("is not one of 0.0, 0.5, 1.0" in f for f in failures)
+
+
+def test_check_labels_rejects_a_duplicate_key(tmp_path):
+    check_labels = _check_labels()
+    rows = _valid_rows("cultural")
+    rows.append(dict(rows[0]))
+    failures, _ = check_labels.check(_labels_file(tmp_path, rows))
+    assert any("duplicate label for" in f for f in failures)
+
+
+def test_check_labels_rejects_a_canary_above_zero(tmp_path):
+    check_labels = _check_labels()
+    rows = _valid_rows("cultural")
+    canary = next(r for r in rows if r["case_id"] == "cult-018")
+    canary["label"] = 0.5
+    failures, _ = check_labels.check(_labels_file(tmp_path, rows))
+    assert any("canary label is 0.5, expected 0.0" in f for f in failures)
+
+
+def test_check_labels_rejects_missing_coverage(tmp_path):
+    check_labels = _check_labels()
+    rows = _valid_rows("cultural")
+    dropped = rows.pop(0)["case_id"]
+    failures, _ = check_labels.check(_labels_file(tmp_path, rows))
+    assert any("case(s) with no label for subject" in f for f in failures)
+    assert any(dropped in f for f in failures)
+
+
+def test_check_labels_rejects_an_unknown_case(tmp_path):
+    check_labels = _check_labels()
+    rows = _valid_rows("cultural")
+    rows[0]["case_id"] = "cult-999"
+    failures, _ = check_labels.check(_labels_file(tmp_path, rows))
+    assert any("is not a case in the suite files" in f for f in failures)
+
+
+def test_check_labels_rejects_a_bad_rater(tmp_path):
+    check_labels = _check_labels()
+    rows = _valid_rows("cultural")
+    rows[0]["rater"] = "assistant"
+    failures, _ = check_labels.check(_labels_file(tmp_path, rows))
+    assert any("does not match draft:<name> or review:<name>" in f for f in failures)
+
+
+def test_check_labels_rejects_a_non_rubric_suite(tmp_path):
+    check_labels = _check_labels()
+    rows = _valid_rows("cultural")
+    rows[0]["suite"] = "factual"
+    rows[0]["case_id"] = load_suite("factual")[0].id
+    failures, _ = check_labels.check(_labels_file(tmp_path, rows))
+    assert any("is not a rubric suite" in f for f in failures)
+
+
 def test_update_readme_table_replaces_only_marked_region(tmp_path):
     readme = tmp_path / "README.md"
     readme.write_text(

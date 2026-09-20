@@ -155,7 +155,9 @@ gets wrong.
 `.github/workflows/eval.yml` runs two jobs. `suites` runs offline on every push
 and pull request — it loads all six suites and fails on a dropped case, a
 duplicated input, a broken judge canary, or a suite that has shrunk below the
-`low-n` threshold. `calibrate` runs weekly and on dispatch only (it needs
+`low-n` threshold. It also validates `annotations/rubric_labels.jsonl` — row key
+shape, the `0.0`/`0.5`/`1.0` scale, rectangular coverage, and that the three
+canaries stay `0.0`. `calibrate` runs weekly and on dispatch only (it needs
 `OPENAI_API_KEY` and mutates a tracked file), and is a smoke run, not the study
 above.
 

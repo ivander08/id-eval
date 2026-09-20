@@ -11,7 +11,8 @@ on:
 jobs:
   suites:
     # Offline regression gate: no secrets, no network. Fails a PR that drops a
-    # case, duplicates an input, breaks a canary, or shrinks a suite below low-n.
+    # case, duplicates an input, breaks a canary, shrinks a suite below low-n, or
+    # breaks the rubric label file.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +23,8 @@ jobs:
         run: pip install -e ".[dev]"
       - name: Suite integrity
         run: python scripts/check_suites.py
+      - name: Label integrity
+        run: python scripts/check_labels.py
 
   calibrate:
     # Smoke calibration, NOT the published study. The published 36-row table is
