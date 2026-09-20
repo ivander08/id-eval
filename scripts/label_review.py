@@ -59,7 +59,8 @@ def _data_row(line: str) -> dict | None:
 
 def _read_raw(path: Path) -> str:
     """File text with line endings untouched, so a rewrite round-trips bytes."""
-    return path.read_text(encoding="utf-8", newline="")
+    with path.open(encoding="utf-8", newline="") as fh:
+        return fh.read()
 
 
 def _write_raw(path: Path, text: str) -> None:
