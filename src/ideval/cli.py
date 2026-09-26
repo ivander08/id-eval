@@ -6,7 +6,6 @@ from pathlib import Path
 import typer
 
 from . import __version__, reporting
-from .calibrate import CalibrationReport
 from .schema import suite_summaries
 
 app = typer.Typer(help="id-eval: Indonesian LLM evaluation toolkit", no_args_is_help=True)
@@ -30,7 +29,7 @@ def list_suites() -> None:
 @app.command()
 def run(suite: str, model: str = typer.Option(..., "--model", "-m"),
         judge: str | None = typer.Option(None, "--judge"),
-        limit: int | None = typer.Option(None, "--limit"),
+        limit: int | None = typer.Option(None, "--limit", min=1),
         out: Path | None = typer.Option(None, "--out"),
         judge_backend: str = typer.Option("native", "--judge-backend",
                                           help="judge implementation: native | deepeval")) -> None:
@@ -51,8 +50,9 @@ def calibrate(
     subject: list[str] = typer.Option(..., "--subject", "-m", help="subject model(s); repeatable"),
     judge: list[str] | None = typer.Option(None, "--judge", help="judge model(s); repeatable"),
     suite: list[str] | None = typer.Option(None, "--suite", help="suite(s); repeatable"),
-    limit: int | None = typer.Option(None, "--limit"),
-    repeats: int = typer.Option(1, "--repeats", help="judge draws per case; >1 enables test-retest"),
+    limit: int | None = typer.Option(None, "--limit", min=1),
+    repeats: int = typer.Option(1, "--repeats", min=1,
+                                help="judge draws per case; >1 enables test-retest"),
     out: Path | None = typer.Option(None, "--out"),
     annotations: Path | None = typer.Option(None, "--annotations",
                                             help="rubric ground-truth labels (JSONL); "

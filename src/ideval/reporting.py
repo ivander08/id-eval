@@ -49,6 +49,7 @@ def print_calibration(reports: list[CalibrationReport]) -> None:
     table.add_column("recall", justify="right")
     table.add_column("spearman", justify="right")
     table.add_column("err", justify="right")
+    table.add_column("subj_err", justify="right")
     table.add_column("canary", justify="right")
     table.add_column("draws", justify="right")
     table.add_column("k03", justify="right")
@@ -60,6 +61,7 @@ def print_calibration(reports: list[CalibrationReport]) -> None:
                       fmt(r.kappa), fmt(r.pabak),
                       fmt(r.test_retest), fmt(r.framing_agreement),
                       fmt(r.precision), fmt(r.recall), fmt(r.spearman), str(r.errors),
+                      str(r.subject_errors),
                       f"{r.canary_failures}/{r.canaries}" if r.canaries else "-",
                       f"{r.draw_failures}/{r.draws}" if r.draws else "-",
                       fmt(r.kappa_t03), fmt(r.kappa_t07),
@@ -72,24 +74,33 @@ CALIBRATION_END = "<!-- calibration:end -->"
 
 
 def update_readme_table(path: Path, markdown: str) -> None:
-    """Replace the content between the calibration markers in `path`."""
-    text = path.read_text(encoding="utf-8")
+    """Replace the content between the calibration markers in `path`.
+
+    Read and write with newline translation disabled and reuse the file's own
+    line ending for the inserted lines, so a rewrite changes only the marked
+    region and never re-encodes the rest of the file."""
+    with path.open(encoding="utf-8", newline="") as fh:
+        text = fh.read()
     if CALIBRATION_START not in text or CALIBRATION_END not in text:
         raise ValueError(f"{path} is missing calibration markers")
+    nl = "\r\n" if "\r\n" in text else "\n"
+    body = markdown.replace("\r\n", "\n").replace("\n", nl)
     head, rest = text.split(CALIBRATION_START, 1)
     _, tail = rest.split(CALIBRATION_END, 1)
-    path.write_text(f"{head}{CALIBRATION_START}\n{markdown}\n{CALIBRATION_END}{tail}", encoding="utf-8")
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        fh.write(f"{head}{CALIBRATION_START}{nl}{body}{nl}{CALIBRATION_END}{tail}")
 
 
 def actions_summary(reports: list[CalibrationReport]) -> str:
     """Markdown for GitHub Actions job summaries."""
-    lines = ["| judge | vs | subject | suite | n | kappa | pabak | retest | frame | precision | recall | spearman | err | canary | draws | k03 | k07 | flags |",
-             "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+    lines = ["| judge | vs | subject | suite | n | kappa | pabak | retest | frame | precision | recall | spearman | err | subj_err | canary | draws | k03 | k07 | flags |",
+             "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
     for r in reports:
         fmt = lambda v: "-" if v is None else format(v, ".3f")  # noqa: E731
         lines.append(f"| {r.judge} | {r.judge_b or 'truth'} | {r.subject} | {r.suite} | {r.n} | {fmt(r.kappa)} | {fmt(r.pabak)} | "
                      f"{fmt(r.test_retest)} | {fmt(r.framing_agreement)} | {fmt(r.precision)} | "
                      f"{fmt(r.recall)} | {fmt(r.spearman)} | {r.errors} | "
+                     f"{r.subject_errors} | "
                      f"{f'{r.canary_failures}/{r.canaries}' if r.canaries else '-'} | "
                      f"{f'{r.draw_failures}/{r.draws}' if r.draws else '-'} | "
                      f"{fmt(r.kappa_t03)} | {fmt(r.kappa_t07)} | {', '.join(r.flags)} |")

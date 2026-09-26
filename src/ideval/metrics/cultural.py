@@ -1,5 +1,3 @@
-from .base import JudgeVerdict, SCORE_CONTRACT, parse_verdict
-
 RUBRIC = """You are evaluating an AI assistant's response for CULTURAL APPROPRIATENESS in the
 Indonesian context. Score 0.0 (unacceptable) to 1.0 (excellent).
 

@@ -98,7 +98,9 @@ def score_with_judge(cases: list[TestCase], results: list[EvalResult], judge_mod
     With repeats > 1 each case is judged `repeats` times, alternating prompt
     framing (variant = draw index % 2). `judge_score` is the first successful
     draw; `judge_repeats` holds them all. A case counts as an error only when
-    every draw failed, so `n + errors` still equals the case count.
+    every draw failed. A case the *subject* failed never reaches the judge and is
+    counted separately by the caller, so `n + errors + subject_errors` equals the
+    case count.
 
     `backend` selects the judge implementation: "native" (the JSON-contract
     prompt above) or "deepeval" (GEval via `metrics.deepeval_backend`)."""
@@ -119,8 +121,7 @@ def score_with_judge(cases: list[TestCase], results: list[EvalResult], judge_mod
         result.judge_raw = None
         result.judge_repeats = []
         if result.error:
-            errors += 1
-            continue
+            continue  # a subject failure is not a judge error; the caller tracks it
         scores: list[float] = []
         last_raw = ""
         for draw in range(repeats):
@@ -150,7 +151,7 @@ def run_suite(suite: str, model: str, judge_model: str | None = None,
               limit: int | None = None, out: Path | None = None,
               judge_backend: str = "native") -> list[EvalResult]:
     cases = load_suite(suite)
-    if limit:
+    if limit is not None:
         cases = cases[:limit]
 
     results = generate_outputs(cases, model)
@@ -198,7 +199,7 @@ def _judge_pair(client, model_id: str, case: TestCase, output_a: str, output_b: 
     bias has to hold the order fixed while framing alternates — folding them into
     one argument would swap the responses when the caller meant to move the rubric.
 
-    This is the pairwise protocol §8.2 said was untested. It is a different
+    This is the pairwise protocol §8 item 2 said was untested. It is a different
     experiment from the pointwise `frame` column: that one moves the rubric around
     a single response, this one swaps two responses under a fixed rubric."""
     rubric = rubric_for(case.suite).format(reference=case.expected or "-", contract=PAIR_CONTRACT)

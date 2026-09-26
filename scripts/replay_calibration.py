@@ -86,15 +86,15 @@ def replay(payload: dict, labels: dict[tuple[str, str, str], float] | None = Non
     drift: list[dict] = []
     for suite in suites:
         cases = load_suite(suite)
-        if limit:
+        if limit is not None:
             cases = cases[:limit]
         for subject in subjects:
             rows = [r for r in pairs if r["suite"] == suite and r["subject"] == subject]
             by_judge = {j: {r["case_id"]: r for r in rows if r["judge"] == j} for j in judges}
-            # the API judges never fail, so the first judge's rows are the cases the
-            # subject answered; deriving this from len(cases) would report a subject
-            # failure as a smaller suite and corrupt `errors`
-            answered = set(by_judge[judges[0]])
+            # a case the subject answered has a row for at least one judge; deriving
+            # this from a single judge would turn that judge's parse failure into a
+            # subject failure and corrupt every judge's `draws`
+            answered = set().union(*(set(by_judge[j]) for j in judges)) if judges else set()
 
             results: dict[str, list[EvalResult]] = {}
             for judge in judges:
@@ -123,23 +123,25 @@ def replay(payload: dict, labels: dict[tuple[str, str, str], float] | None = Non
             verdicts = {j: [r.judge_score for r in results[j]] for j in judges}
             rubric = not any(c.scoreable for c in cases)
             labeled = rubric and bool(labels) and any((suite, c.id, subject) in labels for c in cases)
+            subject_errors = len(cases) - len(answered)
             for judge in judges:
                 rs = results[judge]
                 canary = canary_outcomes(cases, rs)
                 attempts, failures = draw_stats(rs, repeats)
-                judge_errors = len(cases) - len(by_judge[judge])
+                judge_errors = len(cases) - len(by_judge[judge]) - subject_errors
                 gt_scores = ([labels.get((suite, c.id, subject)) for c in cases] if labeled
                              else [r.score for r in rs])
                 if not rubric or labeled:
                     reports.append(build_report(
                         judge, suite, verdicts[judge], gt_scores, judge_errors, subject,
                         [r.judge_repeats for r in rs], attempts, failures,
-                        len(canary), sum(canary.values())))
+                        len(canary), sum(canary.values()), subject_errors=subject_errors))
             if rubric and not labeled:
                 for i, a in enumerate(judges):
                     for b in judges[i + 1:]:
-                        errors = sum(1 for x, y in zip(verdicts[a], verdicts[b])
-                                     if x is None or y is None)
+                        answered_idx = [i for i, r in enumerate(results[a]) if not r.error]
+                        errors = sum(1 for i in answered_idx
+                                     if verdicts[a][i] is None or verdicts[b][i] is None)
                         canary_a = canary_outcomes(cases, results[a])
                         canary_b = canary_outcomes(cases, results[b])
                         merged = {k: canary_a.get(k, False) or canary_b.get(k, False)
@@ -151,7 +153,7 @@ def replay(payload: dict, labels: dict[tuple[str, str, str], float] | None = Non
                             [r.judge_repeats for r in results[a]],
                             [r.judge_repeats for r in results[b]],
                             attempts_a + attempts_b, failures_a + failures_b,
-                            len(merged), sum(merged.values())))
+                            len(merged), sum(merged.values()), subject_errors=subject_errors))
     return reports, drift
 
 
@@ -159,7 +161,7 @@ _RUBRIC_SUITES = {"cultural", "register", "codemix"}
 
 _COMPARED = ("judge", "judge_b", "suite", "subject", "n", "kappa", "agreement", "pabak",
              "test_retest", "framing_agreement", "precision", "recall", "spearman",
-             "errors", "flags")
+             "flags")
 
 
 def _same(a, b) -> bool:
@@ -210,6 +212,10 @@ def verify_against_stored(reports: list, payload: dict, drift: list[dict] | None
             problems.append(f"{where}: flags lost {sorted(old_flags - new_flags)}")
         if new_flags - old_flags:
             notes.append(f"{where}: gained {sorted(new_flags - old_flags)} (round-1 fields)")
+        old_errors = old.get("errors") or 0
+        if not _same(old_errors, (new.errors or 0) + (new.subject_errors or 0)):
+            problems.append(f"{where}: errors stored {old_errors!r} rebuilt "
+                            f"{new.errors!r} + {new.subject_errors!r} subject")
     return problems, notes
 
 
@@ -244,6 +250,7 @@ def verify_against_readme(reports: list, path: Path) -> list[str]:
                   "retest": fmt(r.test_retest), "frame": fmt(r.framing_agreement),
                   "precision": fmt(r.precision), "recall": fmt(r.recall),
                   "spearman": fmt(r.spearman), "err": str(r.errors),
+                  "subj_err": str(r.subject_errors),
                   "k03": fmt(r.kappa_t03), "k07": fmt(r.kappa_t07),
                   "canary": f"{r.canary_failures}/{r.canaries}" if r.canaries else "-",
                   "draws": f"{r.draw_failures}/{r.draws}" if r.draws else "-",
@@ -321,7 +328,7 @@ def main() -> int:
                 print(f"  {p}")
             return 1
         print(f"rebuilt table matches the stored reports on all "
-              f"{len(reports)} rows x {len(_COMPARED)} fields")
+              f"{len(reports)} rows x {len(_COMPARED)} fields (+ errors summed)")
 
     if args.verify_readme:
         problems = verify_against_readme(reports, Path(args.verify_readme))

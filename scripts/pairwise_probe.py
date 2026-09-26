@@ -39,6 +39,13 @@ BETTER = "better"   # the response the API judge passed
 WORSE = "worse"     # the response the API judge failed
 
 
+def _positive(value: str) -> int:
+    n = int(value)
+    if n < 1:
+        raise argparse.ArgumentTypeError(f"must be >= 1, got {n}")
+    return n
+
+
 def build_pairs(payload: dict, suite: str, limit: int | None) -> list[dict]:
     """One pair per case with a known better and worse response, from the artifact.
 
@@ -69,7 +76,7 @@ def build_pairs(payload: dict, suite: str, limit: int | None) -> list[dict]:
                       WORSE: failed[0]["output"], "worse_subject": failed[0]["subject"],
                       "worse_score": failed[0]["judge_score"],
                       "gt": passed[0]["gt"]})
-    if limit:
+    if limit is not None:
         pairs = pairs[:limit]
     return pairs
 
@@ -78,8 +85,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--artifact", default="results_calibration.json")
     ap.add_argument("--suite", default="factual")
-    ap.add_argument("--limit", type=int, help="cap the number of pairs (cost control)")
-    ap.add_argument("--repeats", type=int, default=2,
+    ap.add_argument("--limit", type=_positive, help="cap the number of pairs (cost control)")
+    ap.add_argument("--repeats", type=_positive, default=2,
                     help="draws per order; the order is fixed, the framing alternates")
     ap.add_argument("--judge", action="append", help="judge model(s); repeatable")
     ap.add_argument("--out", default="results_pairwise.json")

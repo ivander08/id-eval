@@ -655,3 +655,82 @@ def test_update_readme_table_replaces_only_marked_region(tmp_path):
     readme.write_text("no markers here\n", encoding="utf-8")
     with pytest.raises(ValueError):
         update_readme_table(readme, "x")
+
+
+def test_score_with_judge_excludes_subject_failures_from_errors(monkeypatch):
+    # a case the subject failed never reaches the judge: counting it as a judge
+    # error would report a subject failure as a judge failure
+    from ideval.runner import score_with_judge
+
+    cases = load_suite("factual")[:2]
+    monkeypatch.setattr("ideval.runner.make_client", lambda m: (object(), m))
+    monkeypatch.setattr("ideval.runner._judge", lambda *a, **k: (None, "not json"))
+    results = [
+        EvalResult(case_id=cases[0].id, suite=cases[0].suite, model="s", output="x"),
+        EvalResult(case_id=cases[1].id, suite=cases[1].suite, model="s", output="x",
+                   error="boom"),
+    ]
+
+    assert score_with_judge(cases, results, "judge-a") == 1  # only the answered case
+    assert results[0].judge_raw == "not json"
+    assert results[1].judge_raw is None  # the judge was never called on it
+
+
+def test_build_report_errors_and_subject_errors_sum_to_case_count():
+    report = build_report("j", "factual", [1.0, None], [1.0, 1.0],
+                          errors=1, subject_errors=1)
+    assert report.n + report.errors + report.subject_errors == 3
+
+    pair = build_inter_judge_report("j", "k", "cultural", [1.0, None], [1.0, None],
+                                    errors=1, subject_errors=1)
+    assert pair.n + pair.errors + pair.subject_errors == 3
+
+
+def test_update_readme_table_preserves_line_endings(tmp_path):
+    readme = tmp_path / "README.md"
+    with readme.open("w", encoding="utf-8", newline="") as fh:
+        fh.write("before\n<!-- calibration:start -->\nold\n<!-- calibration:end -->\nafter\n")
+    update_readme_table(readme, "| a |\n|---|\n| b |")
+    with readme.open(encoding="utf-8", newline="") as fh:
+        assert "\r\n" not in fh.read()
+
+    with readme.open("w", encoding="utf-8", newline="") as fh:
+        fh.write("before\r\n<!-- calibration:start -->\r\nold\r\n<!-- calibration:end -->\r\nafter\r\n")
+    update_readme_table(readme, "| a |\n|---|\n| b |")
+    with readme.open(encoding="utf-8", newline="") as fh:
+        text = fh.read()
+    assert "| a |\r\n|---|\r\n| b |\r\n" in text
+    assert all(line.endswith("\r") for line in text.split("\n")[:-1])
+
+
+def _replay_calibration():
+    """scripts/ is not a package; load the replay tool by path."""
+    import importlib.util
+    path = Path(__file__).resolve().parents[1] / "scripts" / "replay_calibration.py"
+    spec = importlib.util.spec_from_file_location("replay_calibration", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_replay_answered_is_the_union_across_judges():
+    # one judge's parse failure must not look like a subject failure to the others
+    replay_calibration = _replay_calibration()
+    cases = load_suite("factual")
+    judges = ["a", "b", "c"]
+    pairs = [{"suite": "factual", "subject": "s", "judge": j, "case_id": c.id,
+              "gt": None, "judge_score": 0.9, "judge_scores": [0.9],
+              "expected": c.expected, "canary": False, "output": "x", "reason": ""}
+             for c in cases for j in judges]
+    pairs = [r for r in pairs
+             if not (r["judge"] == "a" and r["case_id"] == cases[0].id)]
+    payload = {"config": {"suites": ["factual"], "subjects": ["s"], "judges": judges,
+                          "limit": None, "repeats": 1},
+               "pairs": pairs}
+
+    reports, _ = replay_calibration.replay(payload, None)
+
+    assert len(reports) == 3
+    assert {r.draws for r in reports} == {len(cases)}
+    assert {r.subject_errors for r in reports} == {0}
+    assert {r.judge: r.errors for r in reports} == {"a": 1, "b": 0, "c": 0}

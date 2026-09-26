@@ -1,5 +1,4 @@
 from . import codemix, cultural, factual, register
-from .base import SCORE_CONTRACT
 
 RUBRICS = {
     "factual": factual.RUBRIC,

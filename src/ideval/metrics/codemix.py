@@ -1,5 +1,3 @@
-from .base import JudgeVerdict, SCORE_CONTRACT, parse_verdict
-
 RUBRIC = """You are evaluating an AI assistant's response to an INDONESIAN-ENGLISH
 CODE-MIXED prompt (e.g. Bahasa + English tech/business vocabulary, "gimme
 insight-nya dong"). Score 0.0 to 1.0.

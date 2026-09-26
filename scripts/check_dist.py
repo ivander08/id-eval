@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import hashlib
 import re
-import sys
 import zipfile
 from pathlib import Path
 

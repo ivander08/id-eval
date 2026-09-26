@@ -37,6 +37,7 @@ class CalibrationReport(BaseModel):
     precision: float | None = None  # judge says "pass" -> how often ground truth agrees
     recall: float | None = None     # ground-truth passes -> how often judge catches them
     errors: int = 0                 # cases the judge failed to score (report is not silently complete)
+    subject_errors: int = 0         # cases the subject model failed; the judge never saw them
     canaries: int = 0               # adversarial cases this row's judge(s) scored
     canary_failures: int = 0        # of those, how many the judge passed (score >= threshold)
     draws: int = 0                  # judge draws attempted (repeats x cases the subject answered)
@@ -45,7 +46,9 @@ class CalibrationReport(BaseModel):
     kappa_t07: float | None = None  # kappa binarized at 0.7
     # kappa_t03/kappa_t07 exist to show whether a row's agreement is an artifact of
     # the 0.5 binarization convention that `kappa` uses.
-    flags: list[str] = Field(default_factory=list)  # low-n / prevalence / self-judge
+    # low-n / prevalence / self-judge / unstable / framing-sensitive / canary-fail /
+    # threshold-sensitive, in that order (see `_flags`)
+    flags: list[str] = Field(default_factory=list)
 
 
 def _binarize(scores: list[float], threshold: float) -> list[bool]:
@@ -226,7 +229,8 @@ def build_report(judge: str, suite: str, judge_scores: list[float | None],
                  gt_scores: list[float | None], errors: int = 0,
                  subject: str = "", draws: list[list[float]] | None = None,
                  draws_attempted: int = 0, draw_failures: int = 0,
-                 canaries: int = 0, canary_failures: int = 0) -> CalibrationReport:
+                 canaries: int = 0, canary_failures: int = 0,
+                 subject_errors: int = 0) -> CalibrationReport:
     """Pair, then compute agreement / kappa / PABAK / precision / recall / spearman,
     plus test-retest and framing agreement when repeats were collected.
 
@@ -249,6 +253,7 @@ def build_report(judge: str, suite: str, judge_scores: list[float | None],
         spearman=spearman(j, g),
         precision=precision, recall=recall,
         errors=errors,
+        subject_errors=subject_errors,
         canaries=canaries, canary_failures=canary_failures,
         draws=draws_attempted, draw_failures=draw_failures,
         kappa_t03=kappas[0], kappa_t07=kappas[2],
@@ -262,13 +267,14 @@ def build_inter_judge_report(judge: str, judge_b: str, suite: str,
                              draws_a: list[list[float]] | None = None,
                              draws_b: list[list[float]] | None = None,
                              draws_attempted: int = 0, draw_failures: int = 0,
-                             canaries: int = 0, canary_failures: int = 0) -> CalibrationReport:
+                             canaries: int = 0, canary_failures: int = 0,
+                             subject_errors: int = 0) -> CalibrationReport:
     """Agreement between two judges over the same subject outputs. `judge` is the
     prediction side, `judge_b` the reference side, so precision/recall read as
     "how often judge's passes are also judge_b's passes" and vice versa.
 
     `errors` is the number of cases where at least one of the two judges produced
-    no verdict, so n + errors equals the case count for the pair. Stability
+    no verdict, so `n + errors + subject_errors` equals the case count for the pair. Stability
     columns are the mean of the two judges' own values; each judge's raw draws
     stay on the pair rows, so either can be recomputed.
 
@@ -299,6 +305,7 @@ def build_inter_judge_report(judge: str, judge_b: str, suite: str,
         spearman=spearman(j, g),
         precision=precision, recall=recall,
         errors=errors,
+        subject_errors=subject_errors,
         canaries=canaries, canary_failures=canary_failures,
         draws=draws_attempted, draw_failures=draw_failures,
         kappa_t03=kappas[0], kappa_t07=kappas[2],
@@ -352,7 +359,7 @@ def run_calibration(suites: list[str], subjects: list[str], judges: list[str],
     pairs: list[dict] = []
     for suite in suites:
         cases = schema.load_suite(suite)
-        if limit:
+        if limit is not None:
             cases = cases[:limit]
         rubric = not any(c.scoreable for c in cases)
         for subject in subjects:
@@ -362,6 +369,10 @@ def run_calibration(suites: list[str], subjects: list[str], judges: list[str],
             # as perfect agreement with itself.
             labeled = rubric and bool(labels) and any((suite, c.id, subject) in labels for c in cases)
             results = runner.generate_outputs(cases, subject)
+            # read before the judge loop: `score_with_judge` resets the judge fields
+            # in place but never clears `error`, and `error` is what marks a case the
+            # subject failed to answer (the judge never sees it).
+            subject_errors = sum(1 for r in results if r.error)
             outputs = [r.output for r in results]
             verdicts: dict[str, list[float | None]] = {}
             draw_vectors: dict[str, list[list[float]]] = {}
@@ -392,7 +403,8 @@ def run_calibration(suites: list[str], subjects: list[str], judges: list[str],
                                                 judge_errors[judge], subject,
                                                 draw_vectors[judge],
                                                 attempts, failures,
-                                                len(canary), sum(canary.values())))
+                                                len(canary), sum(canary.values()),
+                                                subject_errors=subject_errors))
             for judge, js, reason, draws in zip(
                     judges, [verdicts[j] for j in judges],
                     [reasons[j] for j in judges], [draw_vectors[j] for j in judges]):
@@ -410,8 +422,9 @@ def run_calibration(suites: list[str], subjects: list[str], judges: list[str],
             if rubric and not labeled:
                 for i, a in enumerate(judges):
                     for b in judges[i + 1:]:
-                        errors = sum(1 for x, y in zip(verdicts[a], verdicts[b])
-                                     if x is None or y is None)
+                        answered = [i for i, r in enumerate(results) if not r.error]
+                        errors = sum(1 for i in answered
+                                     if verdicts[a][i] is None or verdicts[b][i] is None)
                         merged = {k: canary_by_judge[a].get(k, False) or canary_by_judge[b].get(k, False)
                                   for k in canary_by_judge[a] | canary_by_judge[b]}
                         attempts = draws_by_judge[a][0] + draws_by_judge[b][0]
@@ -419,7 +432,8 @@ def run_calibration(suites: list[str], subjects: list[str], judges: list[str],
                         reports.append(build_inter_judge_report(
                             a, b, suite, verdicts[a], verdicts[b], errors, subject,
                             draw_vectors[a], draw_vectors[b],
-                            attempts, failures, len(merged), sum(merged.values())))
+                            attempts, failures, len(merged), sum(merged.values()),
+                            subject_errors=subject_errors))
                 if len(judges) < 2:
                     from . import reporting
                     reporting.console.print(

@@ -1,5 +1,3 @@
-from .base import JudgeVerdict, SCORE_CONTRACT, parse_verdict
-
 RUBRIC = """You are evaluating whether an AI assistant's response matches the REQUIRED
 INDONESIAN LANGUAGE REGISTER. Score 0.0 to 1.0.
 
