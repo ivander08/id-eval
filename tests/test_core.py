@@ -229,6 +229,21 @@ def test_canary_outcomes_flags_a_passing_judge():
     assert canary_outcomes([canary, plain], [caught, missing]) == {"canary-case": False}
 
 
+def test_canary_outcomes_reads_every_draw_not_just_the_headline():
+    # a judge that passes the canary on ONE draw has failed the case: the headline
+    # verdict is the first successful draw, so reading it alone hides an
+    # intermittent pass (the published cult-018 case: draws [0.3, 0.7, 0.3])
+    canary = CaseModel(id="canary-case", suite="s", input="i", ground_truth_type="rubric",
+                       reference_note="ADVERSARIAL: should score LOW")
+    intermittent = EvalResult(case_id="canary-case", suite="s", model="m", output="o",
+                              score=0.0, judge_repeats=[0.0, 1.0, 0.0])
+    assert canary_outcomes([canary], [intermittent]) == {"canary-case": True}
+
+    consistently_low = EvalResult(case_id="canary-case", suite="s", model="m", output="o",
+                                  score=0.0, judge_repeats=[0.3, 0.3, 0.2])
+    assert canary_outcomes([canary], [consistently_low]) == {"canary-case": False}
+
+
 def test_draw_stats_excludes_subject_failures():
     # a case the subject model failed never reached the judge, so its draws are
     # not attempted at all -- counting them would report a subject failure as one

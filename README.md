@@ -85,7 +85,7 @@ the results table here.
 | ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | cultural | 32 | 0.080 | 0.188 | 0.766 | 0.406 | 1.000 | 0.581 | 0.253 | 0 | 0 | 0/1 | 8/96 | 0.207 | 0.038 | unstable, framing-sensitive |
 | kenari/deepseek-v4-1-flash | truth | ollama/qwen2.5:1.5b | cultural | 32 | 0.000 | 0.812 | 1.000 | 1.000 | - | 0.000 | 0.424 | 0 | 0 | 0/1 | 0/96 | 0.264 | - | prevalence |
 | kenari/glm-5-3-flash | truth | ollama/qwen2.5:1.5b | cultural | 32 | 0.000 | 0.812 | 0.990 | 0.969 | - | 0.000 | 0.371 | 0 | 0 | 0/1 | 0/96 | 0.351 | - | prevalence |
-| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | cultural | 32 | -0.053 | 0.000 | 0.771 | 0.344 | 0.067 | 0.333 | -0.083 | 0 | 0 | 0/1 | 3/96 | 0.003 | 0.000 | self-judge, unstable, framing-sensitive, threshold-sensitive |
+| ollama/qwen2.5:1.5b | truth | ollama/qwen2.5:1.5b | cultural | 32 | -0.053 | 0.000 | 0.771 | 0.344 | 0.067 | 0.333 | -0.083 | 0 | 0 | 1/1 | 3/96 | 0.003 | 0.000 | self-judge, unstable, framing-sensitive, canary-fail, threshold-sensitive |
 | kenari/deepseek-v4-1-flash | truth | kenari/qwen3-8-flash | register | 32 | 0.207 | 0.625 | 0.938 | 0.938 | 1.000 | 0.806 | 0.387 | 0 | 0 | 0/1 | 0/96 | 0.297 | 0.162 |  |
 | kenari/glm-5-3-flash | truth | kenari/qwen3-8-flash | register | 32 | 0.176 | 0.562 | 0.969 | 0.969 | 1.000 | 0.774 | 0.338 | 0 | 0 | 0/1 | 0/96 | 0.245 | 0.096 |  |
 | ollama/qwen2.5:1.5b | truth | kenari/qwen3-8-flash | register | 32 | 0.297 | 0.750 | 0.938 | 0.812 | 1.000 | 0.871 | 0.134 | 0 | 0 | 0/1 | 8/96 | 0.000 | 0.191 | prevalence |
@@ -120,7 +120,10 @@ Both render `-` on a single-pass run.
 
 `canary` is the adversarial-case column: `passed/attempted` for the cases whose
 `reference_note` starts with `ADVERSARIAL`, where a *pass* is the failure the case
-exists to catch. The three canaries are `cult-018`, `reg-018` and `cmx-018`; the
+exists to catch. A case counts as passed if the judge scored it at or above `0.5` on
+**any** draw, not just the headline first draw — the judge's headline verdict is the
+first successful draw, so reading it alone would hide an intermittent pass. The
+three canaries are `cult-018`, `reg-018` and `cmx-018`; the
 factual suites carry none, so their cells render `-`. `draws` is
 `unparsed/attempted` verdicts — per-draw, not per-case, which is why a row can show
 `err = 0` (no case failed on *every* draw) beside a non-zero `draws`. `subj_err` is
@@ -139,7 +142,7 @@ response against its suite's rubric via `scripts/label_review.py`, and that pass
 changed 4 labels. It was not a human pass, so the labels remain the single point of
 failure for the rubric rows: they replace "two judges agree" with "one judge agrees
 with one rater", and a second model reading the same drafts shares the first pass's
-blind spots in a way an independent human would not. [`docs/design-notes.md`](https://github.com/ivander08/id-eval/blob/main/docs/design-notes.md#11-closing-the-four-gaps-8-recorded)
+blind spots in a way an independent human would not. [`docs/design-notes.md`](https://github.com/ivander08/id-eval/blob/main/docs/design-notes.md#11-closing-the-gaps-8-recorded-and-what-stays-open)
 §11 states the limitation and reports the resulting kappa.
 
 **The table was regenerated offline**, from the stored `results_calibration.json`

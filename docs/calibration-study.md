@@ -80,9 +80,11 @@ draw failed. Per-draw failure is visible only because `--repeats 3` counts draws
 | `kenari/glm-5-3-flash` | 12 | 0.990 | 0.981 | 0 / 1464 |
 | `ollama/qwen2.5:1.5b` | 12 | 0.833 | 0.575 | 108 / 1464 (7.4%) |
 
-The gap is wider on the judge-vs-truth rows alone: `retest` is `0.981` and `0.995`
-for the two API judges against `0.798` for the local one, and `frame` is `0.953`
-and `0.988` against `0.516`. Every `unstable` row (9 of 36) and every
+The gap is wider on the six `factual*` rows per judge than across all 12: `retest`
+is `0.981` and `0.995` for the two API judges against `0.798` for the local one,
+and `frame` is `0.953` and `0.987` against `0.516`. Across all 12 judge-vs-truth
+rows the same three read `0.979` / `0.990` / `0.833` and `0.953` / `0.981` /
+`0.575`. Every `unstable` row (9 of 36) and every
 `framing-sensitive` row (9 of 36) involves the local judge. A judge that cannot
 reproduce its own verdict across framings cannot anchor a published number,
 regardless of how plausible its reasons read.
@@ -102,7 +104,7 @@ are the local judge grading itself:
 | `ollama/qwen2.5:1.5b` | truth | factual | `ollama/qwen2.5:1.5b` | self-judge, unstable, framing-sensitive |
 | `ollama/qwen2.5:1.5b` | truth | factual_indommlu | `ollama/qwen2.5:1.5b` | self-judge, unstable, framing-sensitive |
 | `ollama/qwen2.5:1.5b` | truth | factual_tydiqa | `ollama/qwen2.5:1.5b` | self-judge, unstable, framing-sensitive |
-| `ollama/qwen2.5:1.5b` | truth | cultural | `ollama/qwen2.5:1.5b` | self-judge, unstable, framing-sensitive, threshold-sensitive |
+| `ollama/qwen2.5:1.5b` | truth | cultural | `ollama/qwen2.5:1.5b` | self-judge, unstable, framing-sensitive, canary-fail, threshold-sensitive |
 | `ollama/qwen2.5:1.5b` | truth | register | `ollama/qwen2.5:1.5b` | self-judge, unstable, framing-sensitive, threshold-sensitive |
 
 The flag fires when the subject is *either* side of a pair, because self-preference
@@ -177,7 +179,9 @@ output and failed the other's, so the pair has a known better response. Each dra
 verdict is resolved from its letter back to the *response* it named, so the two
 orders are compared on content, not on the letter.
 
-`--suite factual --repeats 2`, 21 pairs, from `results_pairwise.json`:
+`--suite factual --repeats 2`, 21 pairs, from `results_pairwise.json` — a local run
+product rather than a shipped artifact, so this table is a measurement, not
+something a reader can recompute offline (see `design-notes.md` §11.2):
 
 | judge | pairs judged in both orders | flip rate | picked the known-better response | unparsed draws |
 |---|---:|---:|---:|---:|
@@ -222,7 +226,7 @@ python scripts/replay_calibration.py \
 Without `--match-audit` it asserts that recomputing `gt` from each row's stored
 `output` and `expected` reproduces the stored `gt` on all 888 scoreable rows, and
 exits non-zero otherwise. `--max-drift 3` is not optional here: the intra-word
-joiner fix (`design-notes.md` §11.4) changed what the matcher returns for
+joiner fix (`design-notes.md` §11.3) changed what the matcher returns for
 `tydiqa-019` on one subject, so 3 of the 888 rows recompute to `1.0` against a
 stored `0.0` by design. The flag bounds that to exactly those three; a fourth would
 still fail. `--verify-readme README.md` checks the rebuilt rows against the

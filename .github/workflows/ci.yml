@@ -13,7 +13,11 @@ jobs:
       matrix:
         # requires-python is >=3.11, so 3.11 is a supported version and must be
         # executed, not just parsed. 3.12 stays the default the other jobs use.
-        python-version: ["3.11", "3.12"]
+        # 3.13 is the third classified version (and the maintainer's interpreter),
+        # so it runs too: 9664a77 is the mirror image of this gap, where a
+        # 3.13-only API (Path.read_text(newline=)) reached CI and took out seven
+        # tests on 3.12.
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

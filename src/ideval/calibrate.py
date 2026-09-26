@@ -202,16 +202,21 @@ def canary_outcomes(cases: list[TestCase], results: list[EvalResult],
                     threshold: float = 0.5) -> dict[str, bool]:
     """{case_id: passed} for every adversarial case the judge scored. A case is a
     canary when its `reference_note` starts with "ADVERSARIAL"; passing it means
-    the judge scored it at or above the threshold, which is the failure the canary
-    exists to catch. Cases with no verdict are omitted, not counted as passed."""
+    the judge scored it at or above the threshold on ANY draw, which is the failure
+    the canary exists to catch — a judge that passes it once has failed the case,
+    and reading only the first successful draw would hide an intermittent pass.
+    Falls back to the single headline verdict for a result that carries no draws
+    (`judge_repeats` empty, e.g. a hand-built result in a test). Cases with no
+    verdict are omitted, not counted as passed."""
     outcomes: dict[str, bool] = {}
     for case, r in zip(cases, results):
         if not (case.reference_note or "").startswith("ADVERSARIAL"):
             continue
-        verdict = r.judge_score if case.scoreable else r.score
-        if verdict is None:
+        draws = r.judge_repeats or ([r.judge_score] if case.scoreable else [r.score])
+        verdicts = [v for v in draws if v is not None]
+        if not verdicts:
             continue
-        outcomes[case.id] = verdict >= threshold
+        outcomes[case.id] = any(v >= threshold for v in verdicts)
     return outcomes
 
 

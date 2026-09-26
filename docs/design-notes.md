@@ -269,10 +269,13 @@ pointwise analogue of position bias showing up as a measurable, judge-specific
 effect rather than a suspicion — see §8.
 
 Five of the six `self-judge` rows are simultaneously `unstable` *and*
-`framing-sensitive`. The sixth — the local judge on `codemix` — is the one that
-passes its canary, so it carries `canary-fail` and `threshold-sensitive` instead.
-The §8 caveat that these rows are "confounded by construction" is now quantified
-rather than asserted.
+`framing-sensitive`. The sixth — the local judge on `codemix` — passes its canary,
+so it carries `canary-fail` and `threshold-sensitive` instead. Passing is not
+confined to that row: the local judge passes 2 of the 3 canaries (`cmx-018` on both
+subjects' outputs, `cult-018` on its own) and is caught only on `reg-018`, so its
+`cultural` self-judge row carries `canary-fail` as well — see §10. The §8 caveat
+that these rows are "confounded by construction" is now quantified rather than
+asserted.
 
 ---
 
@@ -479,7 +482,7 @@ strengths is marketing.
    are the more useful finding: the `expected` string appears verbatim in the
    output, the matcher scores it `1.0`, and the judge returns `0.0`. `_normalize`
    is SQuAD-style plus unit canonicalization; it does not canonicalize scripts, and
-   closing the paraphrase gap needs a semantic matcher, not a wider regex. §11.3
+   closing the paraphrase gap needs a semantic matcher, not a wider regex. §11.4
    records the affix-aware matcher that was written for it and **reverted**, with
    the measured false-positive count that decided it. Closing the judge-miss gap
    needs nothing from the matcher at all — it is a §2 failure, visible only because
@@ -637,9 +640,11 @@ previous verdict" guarantee as the native path, with no change to
 `src/ideval/calibrate.py` — three claims that §1, §3 and §6 previously supported
 only in prose are now fields on `CalibrationReport`, computed by `run_calibration`
 from data it already collected. No new judge calls, no new dependency, and no
-existing field changed meaning, so the published 36-row table stays valid:
-`canary`, `draws`, `k03` and `k07` read `-` on it and populate on the next full
-run.
+existing field changed meaning. The published 36-row table was regenerated from
+the stored artifact, so all four columns are populated on it rather than deferred
+to the next full run: `draws` and `k03` on all 36 rows, `canary` on the 18 rubric
+rows (`-` on the 18 `factual*` rows, which carry no canary), and `k07` on 32 (`-`
+on the 4 rows where `pe = 1.0` and kappa is undefined at every threshold).
 
 ### The canaries were never scored
 
@@ -673,9 +678,13 @@ the local judge's problem is not "cannot read a canary" but "reads two of three
 unreliably". §8 item 1's inter-judge rows are the same judge on the same suites, and
 this is the mechanism behind them.
 
-The flag is what makes it visible in a table: `canary-fail` fires on the
-`cultural` and `codemix` pair rows and on neither `register` row, matching the
-per-case outcomes exactly.
+The flag is what makes it visible in a table: `canary-fail` fires on **3** of the
+36 rows — the local judge's `cultural` self-judge row and both of its `codemix`
+rows (one per subject) — matching the per-case outcomes exactly. The local judge
+passes 2 of the 3 canaries (`cmx-018` on both subjects' outputs, `cult-018` on its
+own) and is caught on `reg-018` and on the `cultural` row where the subject is
+`kenari/qwen3-8-flash`. §11.1's per-row table is the same result read off the
+published table.
 
 ### Per-draw failure is now a field
 
@@ -734,15 +743,21 @@ kappa column" — now a flag on the row instead of a caveat in the prose.
 
 ---
 
-## 11. Closing the four gaps §8 recorded
+## 11. Closing the gaps §8 recorded, and what stays open
 
 `src/ideval/calibrate.py`, `src/ideval/runner.py`, `src/ideval/metrics/base.py` —
-§8 listed four things the study knew it got wrong. Three are now closed and one is
-partially closed with the remainder stated. The numbers below are read from the
-regenerated artifacts (`README.md`'s table, `results_pairwise.json`,
-`annotations/rubric_labels.jsonl`), not restated from the design that produced them.
+§8 lists five things the study knew it got wrong (the fifth, `prevalence`, was
+added by `35269b3`). §11.1 and §11.2 close the first two. §11.3 and §11.4 are the
+two halves of the fourth: the joiner fix closes the tokenization half and the
+affix-aware half was written, measured and reverted, so the paraphrase gap stays
+open minus one row. The third (`--repeats` is a study parameter, not a default) and
+the fifth (`prevalence` cells are still published) are unchanged by this section
+and are stated as open in §8. The numbers below are read from the regenerated
+artifacts (`README.md`'s table, `results_pairwise.json` — a local run product, see
+§11.2 — and `annotations/rubric_labels.jsonl`), not restated from the design that
+produced them.
 
-### The rubric suites are now judge-vs-truth, against reviewed labels
+### 11.1 The rubric suites are now judge-vs-truth, against reviewed labels
 
 `annotations/rubric_labels.jsonl` — 192 rows, one per `(suite, case_id, subject)`,
 carrying a `0.0`/`0.5`/`1.0` label and a `rater` field. `calibrate.load_labels`
@@ -768,9 +783,9 @@ inflates kappa to `1.000`. Reading gt from the label map makes that impossible �
 case with no label contributes `None` and `pair_scores` drops it, shrinking `n`
 rather than inventing agreement.
 
-**Nothing in the suites moved.** `TestCase.scoreable` is read at 16 non-test sites,
-and `scripts/check_suites.py` fails any scoreable case in a non-`SCOREABLE` suite,
-so `ground_truth_type` stays `rubric` and no `expected` was added. Annotations are
+**Nothing in the suites moved.** `scripts/check_suites.py` fails any scoreable case
+in a non-`SCOREABLE` suite, so `ground_truth_type` stays `rubric` and no `expected`
+was added. Annotations are
 external precisely so `check_suites.py`, the suite files and
 `tests/test_core.py`'s rubric-suite test are all untouched. The offline gate still
 reads `OK: 6 suites, 248 cases, 3 canaries`, and the 18 `factual*` rows are
@@ -785,7 +800,7 @@ The resulting rows, from the regenerated table:
 | `cultural` | `kenari/qwen3-8-flash` | `ollama/qwen2.5:1.5b` | 32 | 0.080 | 0.188 | 0/1 | unstable, framing-sensitive |
 | `cultural` | `ollama/qwen2.5:1.5b` | `kenari/deepseek-v4-1-flash` | 32 | 0.000 | 0.812 | 0/1 | prevalence |
 | `cultural` | `ollama/qwen2.5:1.5b` | `kenari/glm-5-3-flash` | 32 | 0.000 | 0.812 | 0/1 | prevalence |
-| `cultural` | `ollama/qwen2.5:1.5b` | `ollama/qwen2.5:1.5b` | 32 | −0.053 | 0.000 | 0/1 | self-judge, unstable, framing-sensitive, threshold-sensitive |
+| `cultural` | `ollama/qwen2.5:1.5b` | `ollama/qwen2.5:1.5b` | 32 | −0.053 | 0.000 | **1/1** | self-judge, unstable, framing-sensitive, canary-fail, threshold-sensitive |
 | `register` | `kenari/qwen3-8-flash` | `kenari/deepseek-v4-1-flash` | 32 | 0.207 | 0.625 | 0/1 | |
 | `register` | `kenari/qwen3-8-flash` | `kenari/glm-5-3-flash` | 32 | 0.176 | 0.562 | 0/1 | |
 | `register` | `kenari/qwen3-8-flash` | `ollama/qwen2.5:1.5b` | 32 | 0.297 | 0.750 | 0/1 | prevalence |
@@ -834,7 +849,7 @@ The label distribution is skewed in a way that matters: `codemix` labels pass
 least readable number in the block. `rater: review:<name>` for a human reviewer
 remains the open hook.
 
-### Pairwise position bias is measured, and two of three judges show none
+### 11.2 Pairwise position bias is measured, and two of three judges show none
 
 `src/ideval/runner.py` — `_judge_pair` presents two responses under a fixed rubric
 and swaps which is `A`; `metrics/base.PairVerdict` + `parse_pair_verdict` are the
@@ -883,14 +898,22 @@ responses per item; the 36-row table has one response per case per subject, so
 there is no column of it that would mean anything. It is reported here and in
 `docs/calibration-study.md` instead.
 
-### The `tydiqa-019` disagreement was a normalizer gap, not paraphrase
+**`results_pairwise.json` is a local run product, not a shipped artifact.** It is
+gitignored (`results*.json`) and is not attached to the release, which carries
+`results_calibration.json` alone, so the table above is a measurement rather than
+something a reader can recompute offline. Re-running it needs two live judges and
+`scripts/pairwise_probe.py`; the numbers it would ship are already in this section
+and in `docs/calibration-study.md`.
+
+### 11.3 The `tydiqa-019` disagreement was a normalizer gap, not paraphrase
 
 `src/ideval/runner.py` — `_PUNCT` replaces every non-word character with a space,
 so an intra-word apostrophe or hyphen split one token into two:
 
 ```
-_normalize("Al-Qur'an")  ->  "al qur an"
-_normalize("Alquran")    ->  "alquran"
+before (_JOINER): _normalize("Al-Qur'an")  ->  "al qur an"
+                  _normalize("Alquran")    ->  "alquran"
+after  (_JOINER): _normalize("Al-Qur'an")  ->  "alquran"
 ```
 
 `tydiqa-019`'s expected value is `salinan pertama Alquran`, and one subject wrote
@@ -913,7 +936,7 @@ moved, and the eight pinned `_match_exact`/`_normalize` tests in
 guard: `_JOINER` must not make `test_normalize_still_rejects_genuine_misses` start
 matching.
 
-### The affix-aware containment half was written, measured, and reverted
+### 11.4 The affix-aware containment half was written, measured, and reverted
 
 The plan for the same step also replaced `_match_exact`'s substring test with
 affix-aware token containment, so `berlari` would match `berjalan`-class
@@ -959,11 +982,14 @@ reverted experiment demonstrates rather than asserts. The joiner fix is kept
 because it is a different kind of change: it repairs tokenization without loosening
 what counts as a match.
 
-### The README table was regenerated offline
+### 11.5 The README table was regenerated offline
 
 `README.md`'s table was rebuilt from `results_calibration.json` by
-`scripts/replay_calibration.py`, not by a new `calibrate` run, and the 13
-pre-existing value columns reproduce row for row. `adapters.chat` pins no
+`scripts/replay_calibration.py`, not by a new `calibrate` run, and the 10 value
+columns that predate the round-1 additions (`n`, `kappa`, `pabak`, `retest`,
+`frame`, `precision`, `recall`, `spearman`, `err`, `flags`) reproduce row for row.
+The table carries 15 value columns now: `8e0088f` added `canary`, `draws`, `k03`
+and `k07`, and `bcc9f10` added `subj_err`. `adapters.chat` pins no
 temperature (§7), so a fresh run would judge different text and every number would
 move for reasons unrelated to this change; a replay is the only way to change what
 the table *means* while holding what it *measures* fixed. The judge verdicts in the
