@@ -153,8 +153,14 @@ curl -LO https://github.com/ivander08/id-eval/releases/download/v0.1.0/results_c
 python scripts/replay_calibration.py \
   --artifact results_calibration.json \
   --labels annotations/rubric_labels.jsonl \
+  --max-drift 3 \
   --out README_table.md            # then paste between the README markers
 ```
+
+`--max-drift 3` is required, not cosmetic: the joiner fix described above changed
+what the matcher returns for `tydiqa-019` on one subject, so 3 of the 888 scoreable
+rows legitimately recompute to `1.0` against a stored `0.0`. Without the flag the
+script refuses to rebuild at all and tells you the count.
 
 Without `--match-audit` it asserts that recomputing `gt` from each row's stored
 `output` and `expected` reproduces the stored `gt` on all 888 scoreable rows, and
