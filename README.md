@@ -9,8 +9,8 @@ M0–M3 are complete. M4 is built and verified locally; the PyPI upload is a man
 - [x] M0 — scaffold, CLI, schema, suites seeds, tests
 - [x] M1 — deepeval metric classes + runner hardening + ~200 curated cases
 - [x] M2 — `ideval calibrate`: judge agreement study (Cohen's kappa, Spearman)
-- [x] M3 — CI eval job, published calibration table, [write-up](docs/blog-indonesian-judge-calibration.md)
-- [ ] M4 — PyPI release: wheel builds and installs from a clean venv and is verified against HEAD; not yet uploaded
+- [x] M3 — CI eval job, published calibration table, [write-up](https://github.com/ivander08/id-eval/blob/main/docs/blog-indonesian-judge-calibration.md)
+- [ ] M4 — PyPI release: the wheel builds, installs from a clean venv and is verified against HEAD
 
 ## Install
 
@@ -32,7 +32,7 @@ python scripts/check_dist.py            # pre-upload: newest dist/ wheel vs this
 `--judge-backend deepeval` runs judging through deepeval's `GEval` instead of the
 native JSON-contract prompt, reusing the same provider routing and score scale.
 It is opt-in: the published calibration table below was produced by the native
-path. See [`docs/design-notes.md`](docs/design-notes.md) §9. It needs the optional
+path. See [`docs/design-notes.md`](https://github.com/ivander08/id-eval/blob/main/docs/design-notes.md#9-the-geval-backend-is-opt-in-and-what-that-cost) §9. It needs the optional
 extra: `pip install "id-eval[deepeval]"`.
 
 Models follow `provider/model-id` syntax. Providers: `openai` (any OpenAI-compatible
@@ -137,7 +137,7 @@ response against its suite's rubric via `scripts/label_review.py`, and that pass
 changed 4 labels. It was not a human pass, so the labels remain the single point of
 failure for the rubric rows: they replace "two judges agree" with "one judge agrees
 with one rater", and a second model reading the same drafts shares the first pass's
-blind spots in a way an independent human would not. [`docs/design-notes.md`](docs/design-notes.md)
+blind spots in a way an independent human would not. [`docs/design-notes.md`](https://github.com/ivander08/id-eval/blob/main/docs/design-notes.md#11-closing-the-four-gaps-8-recorded)
 §11 states the limitation and reports the resulting kappa.
 
 **The table was regenerated offline**, from the stored `results_calibration.json`
@@ -146,10 +146,10 @@ pins no temperature, so a fresh run would judge different text and every number
 would move for reasons unrelated to this change. The judge verdicts in the table
 are the M2 study's; only the ground-truth column for the 18 rubric rows is new.
 
-[`docs/calibration-study.md`](docs/calibration-study.md) is the write-up: the
+[`docs/calibration-study.md`](https://github.com/ivander08/id-eval/blob/main/docs/calibration-study.md) is the write-up: the
 design, the kappa-collapse rows, the reliability gap between the API judges and
 the local one, and what the study still gets wrong.
-[`docs/design-notes.md`](docs/design-notes.md) records why each of these choices
+[`docs/design-notes.md`](https://github.com/ivander08/id-eval/blob/main/docs/design-notes.md) records why each of these choices
 was made, what it costs, the published evidence behind it, and what id-eval still
 gets wrong.
 

@@ -141,7 +141,13 @@ will have it for the same good reason.
 
 ## Reproduce it
 
-The table needs no API key and no six-hour run:
+The table needs no API key and no six-hour run. The stored artifact is a 2.1 MB
+[v0.1.0 release
+asset](https://github.com/ivander08/id-eval/releases/download/v0.1.0/results_calibration.json):
+
+```bash
+curl -LO https://github.com/ivander08/id-eval/releases/download/v0.1.0/results_calibration.json
+```
 
 ```bash
 python scripts/replay_calibration.py \
