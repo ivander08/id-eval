@@ -501,6 +501,10 @@ judging through deepeval's `GEval` metric instead of the native JSON-contract
 prompt. It is **not** the default, and that is a deliberate choice with a price
 attached.
 
+The dependency follows the same rule: `deepeval` is an optional extra
+(`pip install "id-eval[deepeval]"`), not a core requirement, so a native run
+installs only `typer`, `pydantic`, `openai` and `rich`.
+
 ### Why opt-in rather than the default
 
 The published 36-row table in the README is the artifact of record, and it was

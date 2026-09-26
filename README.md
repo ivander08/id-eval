@@ -4,13 +4,13 @@ Indonesian LLM evaluation toolkit: curated suites, calibrated LLM-as-judge, CI-r
 
 ## Status
 
-All five milestones complete:
+M0–M3 are complete. M4 is built and verified locally; the PyPI upload is a manual step.
 
 - [x] M0 — scaffold, CLI, schema, suites seeds, tests
 - [x] M1 — deepeval metric classes + runner hardening + ~200 curated cases
 - [x] M2 — `ideval calibrate`: judge agreement study (Cohen's kappa, Spearman)
-- [x] M3 — CI eval job, published calibration table, blog post
-- [x] M4 — PyPI release (wheel builds and installs; not uploaded)
+- [x] M3 — CI eval job, published calibration table, [write-up](docs/blog-indonesian-judge-calibration.md)
+- [ ] M4 — PyPI release: wheel builds and installs from a clean venv and is verified against HEAD; not yet uploaded
 
 ## Install
 
@@ -25,12 +25,15 @@ ideval list-suites
 ideval run factual --model ollama/qwen2.5:1.5b --judge ollama/qwen2.5:1.5b
 ideval calibrate --suite factual --subject ollama/qwen2.5:1.5b --judge ollama/qwen2.5:1.5b
 python scripts/check_suites.py          # offline suite gate, no network or API key
+python scripts/check_labels.py          # offline rubric-label gate
+python scripts/check_dist.py            # pre-upload: newest dist/ wheel vs this tree
 ```
 
 `--judge-backend deepeval` runs judging through deepeval's `GEval` instead of the
 native JSON-contract prompt, reusing the same provider routing and score scale.
 It is opt-in: the published calibration table below was produced by the native
-path. See [`docs/design-notes.md`](docs/design-notes.md) §9.
+path. See [`docs/design-notes.md`](docs/design-notes.md) §9. It needs the optional
+extra: `pip install "id-eval[deepeval]"`.
 
 Models follow `provider/model-id` syntax. Providers: `openai` (any OpenAI-compatible
 endpoint via `OPENAI_API_KEY`/`OPENAI_BASE_URL`), `openrouter`, `kenari`
@@ -157,9 +160,11 @@ and pull request — it loads all six suites and fails on a dropped case, a
 duplicated input, a broken judge canary, or a suite that has shrunk below the
 `low-n` threshold. It also validates `annotations/rubric_labels.jsonl` — row key
 shape, the `0.0`/`0.5`/`1.0` scale, rectangular coverage, and that the three
-canaries stay `0.0`. `calibrate` runs weekly and on dispatch only (it needs
-`OPENAI_API_KEY` and mutates a tracked file), and is a smoke run, not the study
-above.
+canaries stay `0.0`. It also builds a wheel and checks it against the tree
+(`scripts/check_dist.py`), so a `[tool.hatch.build]` change that drops a module or
+a suite fails in CI rather than at upload. `calibrate` runs weekly and on dispatch
+only (it needs `OPENAI_API_KEY` and mutates a tracked file), and is a smoke run, not
+the study above.
 
 ## License
 

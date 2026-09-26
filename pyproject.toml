@@ -26,11 +26,11 @@ dependencies = [
     "pydantic>=2.7",
     "openai>=1.40",
     "rich>=13.7",
-    "deepeval>=4.2",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "build>=1.2", "twine>=5.0"]
+deepeval = ["deepeval>=4.2"]
+dev = ["pytest>=8.0", "build>=1.2", "twine>=5.0", "deepeval>=4.2"]
 
 [project.urls]
 Homepage = "https://github.com/ivander08/id-eval"
@@ -50,7 +50,8 @@ packages = ["src/ideval"]
 "suites" = "ideval/suites"
 
 [tool.hatch.build.targets.sdist]
-include = ["src", "suites", "tests", "docs", "README.md", "LICENSE", "pyproject.toml"]
+include = ["src", "suites", "tests", "docs", "scripts", "README.md", "LICENSE", "pyproject.toml",
+           "annotations/rubric_labels.jsonl", "annotations/review_decisions.jsonl"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

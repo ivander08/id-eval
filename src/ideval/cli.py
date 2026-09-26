@@ -65,6 +65,10 @@ def calibrate(
     from .calibrate import load_labels, run_calibration  # deferred: keeps list-suites dependency-free
 
     _check_backend(judge_backend)
+    if repeats == 1:
+        reporting.console.print(
+            "[yellow]note:[/yellow] --repeats 1 leaves `retest` and `frame` undefined "
+            "(they render as `-`); pass --repeats 3 for the reliability axis")
     judges = judge or ["kenari/deepseek-v4-1-flash"]
     suites = suite or ["factual", "factual_indommlu", "factual_tydiqa"]
     labels = load_labels(annotations) if annotations else None

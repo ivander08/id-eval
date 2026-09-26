@@ -345,6 +345,7 @@ def test_run_calibration_scores_rubric_suites_via_judge_pairs(monkeypatch):
 def test_deepeval_backend_scores_on_the_repo_scale(monkeypatch):
     # GEval's default score range is (0, 10): without the (0, 1) rubric the same
     # 0.8 verdict is normalized to 0.08. This pins the range, not the plumbing.
+    pytest.importorskip("deepeval")  # optional extra; must precede the imports below
     from ideval.metrics.base import JudgeVerdict
     from ideval.metrics.deepeval_backend import RepoJudge, judge_case
 
@@ -358,6 +359,7 @@ def test_deepeval_backend_scores_on_the_repo_scale(monkeypatch):
 
 
 def test_deepeval_framing_templates_alternate():
+    pytest.importorskip("deepeval")  # optional extra; must precede the import below
     from ideval.metrics.deepeval_backend import (FramingTemplateResponseFirst,
                                                  FramingTemplateRubricFirst)
 
@@ -371,6 +373,20 @@ def test_deepeval_framing_templates_alternate():
         assert "Evaluation Steps:" in rendered and "Test Case:" in rendered
     assert response_first.index("Evaluation Steps:") < response_first.index("Test Case:")
     assert rubric_first.index("Test Case:") < rubric_first.index("Evaluation Steps:")
+
+
+def test_native_import_path_does_not_load_deepeval_backend():
+    # deepeval is an optional extra: importing the runner must not drag the
+    # backend in, or the extra is a lie.
+    import os
+    import subprocess
+    import sys
+
+    src = Path(__file__).resolve().parents[1] / "src"
+    env = {**os.environ, "PYTHONPATH": str(src)}
+    code = ("import sys, ideval.runner; "
+            "assert 'ideval.metrics.deepeval_backend' not in sys.modules")
+    subprocess.run([sys.executable, "-c", code], env=env, check=True)
 
 
 def _label_review():

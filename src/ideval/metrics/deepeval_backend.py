@@ -19,8 +19,8 @@ from .base import JudgeVerdict
 if TYPE_CHECKING:
     from ..schema import TestCase
 
-_MISSING = ("--judge-backend deepeval requires the 'deepeval' package "
-            "(pip install deepeval)")
+_MISSING = ("--judge-backend deepeval requires the optional 'deepeval' extra "
+            "(pip install \"id-eval[deepeval]\")")
 
 
 def _require_deepeval() -> None:

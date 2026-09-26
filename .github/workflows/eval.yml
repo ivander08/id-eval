@@ -25,6 +25,15 @@ jobs:
         run: python scripts/check_suites.py
       - name: Label integrity
         run: python scripts/check_labels.py
+      - name: Dist freshness
+        # dist/ is gitignored and CI always builds fresh, so this cannot detect a
+        # stale local wheel — that is the maintainer's pre-upload check. What it
+        # proves here is that the wheel builds and ships exactly the tree's modules
+        # and suites, so a broken [tool.hatch.build] config fails instead of
+        # publishing a wheel with a module or suite missing.
+        run: |
+          python -m build --wheel
+          python scripts/check_dist.py
 
   calibrate:
     # Smoke calibration, NOT the published study. The published 36-row table is
