@@ -28,11 +28,11 @@ jobs:
       - name: Dist freshness
         # dist/ is gitignored and CI always builds fresh, so this cannot detect a
         # stale local wheel — that is the maintainer's pre-upload check. What it
-        # proves here is that the wheel builds and ships exactly the tree's modules
-        # and suites, so a broken [tool.hatch.build] config fails instead of
-        # publishing a wheel with a module or suite missing.
+        # proves here is that the wheel and sdist build and ship exactly the tree's
+        # modules, suites, docs and scripts, so a broken [tool.hatch.build] config
+        # fails instead of publishing a distribution with a file missing.
         run: |
-          python -m build --wheel
+          python -m build
           python scripts/check_dist.py
 
   calibrate:
