@@ -26,7 +26,7 @@ ideval run factual --model ollama/qwen2.5:1.5b --judge ollama/qwen2.5:1.5b
 ideval calibrate --suite factual --subject ollama/qwen2.5:1.5b --judge ollama/qwen2.5:1.5b
 python scripts/check_suites.py          # offline suite gate, no network or API key
 python scripts/check_labels.py          # offline rubric-label gate
-python scripts/check_dist.py            # pre-upload: newest dist/ wheel vs this tree
+python scripts/check_dist.py            # pre-upload: newest wheel+sdist vs this tree
 ```
 
 `--judge-backend deepeval` runs judging through deepeval's `GEval` instead of the
@@ -165,9 +165,10 @@ and pull request — it loads all six suites and fails on a dropped case, a
 duplicated input, a broken judge canary, or a suite that has shrunk below the
 `low-n` threshold. It also validates `annotations/rubric_labels.jsonl` — row key
 shape, the `0.0`/`0.5`/`1.0` scale, rectangular coverage, and that the three
-canaries stay `0.0`. It also builds a wheel and checks it against the tree
-(`scripts/check_dist.py`), so a `[tool.hatch.build]` change that drops a module or
-a suite fails in CI rather than at upload. `calibrate` runs weekly and on dispatch
+canaries stay `0.0`. It also builds the wheel and the sdist and checks both against
+the tree (`scripts/check_dist.py`), including the wheel's `README.md`/`LICENSE`
+metadata, so a `[tool.hatch.build]` change that drops a module, a suite or a doc
+fails in CI rather than at upload. `calibrate` runs weekly and on dispatch
 only (it needs `OPENAI_API_KEY` and mutates a tracked file), and is a smoke run, not
 the study above.
 
