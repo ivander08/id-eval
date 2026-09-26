@@ -71,9 +71,10 @@ The 108 failed draws are the other half of the story, and they are invisible in 
 `err` column, which reads `0` for the local judge on every row. That is not a bug:
 `errors` counts *cases*, and a case counts as an error only when *every* draw
 failed to parse. A judge that fails one draw in three and gets the other two right
-never registers. Per-draw failure is visible only because `--repeats 3` counts
-draws, and 7.4% of 1464 draws is 108 pieces of evidence that the single-pass number
-for this judge was noise.
+never registers. (The eight cases it does not score on `factual_indommlu` are
+subject failures, published as `subj_err`.) Per-draw failure is visible only
+because `--repeats 3` counts draws, and 7.4% of 1464 draws is 108 pieces of evidence
+that the single-pass number for this judge was noise.
 
 This is why `ideval calibrate --repeats 1` now prints a notice. On a single pass
 `retest` and `frame` render `-`, and the reliability axis — the only axis on which

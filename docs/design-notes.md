@@ -196,7 +196,7 @@ publish. See §8.
 
 ## 5. Fragile cells are annotated, not just computed
 
-`_flags` marks five conditions that make a row hard to read:
+`_flags` marks seven conditions that make a row hard to read:
 
 | flag | trigger | why |
 |---|---|---|
@@ -205,6 +205,8 @@ publish. See §8.
 | `self-judge` | `subject == judge` | self-preference bias confounds the row |
 | `unstable` | `test_retest < 0.90` | the judge does not agree with itself run to run |
 | `framing-sensitive` | `framing_agreement < 0.80` | moving the rubric changes the verdict |
+| `canary-fail` | any adversarial case scored `>= 0.5` | the judge passed a case built to catch it |
+| `threshold-sensitive` | kappa changes sign across `0.3`/`0.5`/`0.7` | the row's claim depends on the binarization |
 
 The `low-n` threshold is a power argument, not a convention. For a proportion,
 `SE = N^(−1/2)·√(p(1−p))`; at `n = 10, p = 0.6` that is `±0.30` at 95%, and a
@@ -219,7 +221,7 @@ The `self-judge` flag is the most important flag in the table. Panickssery et al
 that LLM evaluators recognise and favour their own generations, with the strength
 of the bias tracking self-recognition capability — so a row where subject and
 judge are the same model is confounded by construction. The shipped study has
-nine such rows, all marked, and five of them are additionally `unstable` and
+six such rows, all marked, and five of them are additionally `unstable` and
 `framing-sensitive` — the local judge is both the most biased and the least
 self-consistent row in the table.
 
@@ -266,10 +268,11 @@ follows the response. The API judges lose far less (`0.984`, `0.949`). That is t
 pointwise analogue of position bias showing up as a measurable, judge-specific
 effect rather than a suspicion — see §8.
 
-Five of the nine `self-judge` rows are simultaneously `unstable` *and*
-`framing-sensitive`; the other four carry `framing-sensitive` alone. The §8
-caveat that these rows are "confounded by construction" is now quantified rather
-than asserted.
+Five of the six `self-judge` rows are simultaneously `unstable` *and*
+`framing-sensitive`. The sixth — the local judge on `codemix` — is the one that
+passes its canary, so it carries `canary-fail` and `threshold-sensitive` instead.
+The §8 caveat that these rows are "confounded by construction" is now quantified
+rather than asserted.
 
 ---
 
@@ -389,9 +392,12 @@ does not parse, id-eval records it and moves on. It does not retry, and it does
 not attempt to salvage a score from malformed output. Silently repairing judge
 output is how a harness starts inventing data.
 
-**Failures are counted, not dropped.** `n + errors` equals the suite's case count
-for every row, so a row can never quietly be computed over a subset. The `err`
-column is part of the table for the same reason.
+**Failures are counted, not dropped.** `n + errors + subject_errors` equals the
+suite's case count for every row, so a row can never quietly be computed over a
+subset. `errors` counts cases the judge failed on every draw, `subject_errors`
+counts cases the subject model failed (which never reached the judge), and both
+are published so the sum is checkable from the table. The `err` column is part of
+the table for the same reason.
 
 **Repeats are a study parameter, not a default.** `calibrate --repeats N` judges
 each case `N` times, alternating prompt framing, and records every draw on the
@@ -402,11 +408,12 @@ still the right tool for a quick diagnostic — it renders both columns `-` rath
 than pretending to a stability number it did not measure.
 
 Two consequences worth stating. A case counts as an error only when *every* draw
-failed, so `n + errors` still equals the case count and a judge that fails once in
-three draws is not silently dropped from the row. And `test_retest` can be `1.0`
-on a case that fails under every draw, because only successful draws enter the
-statistic — stability of failure is still stability. Coverage is what `n` and
-`errors` report; stability is a separate axis.
+failed, so `n + errors + subject_errors` still equals the case count and a judge
+that fails once in three draws is not silently dropped from the row. And
+`test_retest` can be `1.0` on a case that fails under every draw, because only
+successful draws enter the statistic — stability of failure is still stability.
+Coverage is what `n`, `errors` and `subject_errors` report; stability is a
+separate axis.
 
 ---
 
@@ -439,7 +446,7 @@ strengths is marketing.
    `0.798`). Four pairs are `unstable` and six are `framing-sensitive` — every one
    of them a pair with the local judge.
 
-   Four of those 18 pairs are also `prevalence`, which is the honest reading of
+   Six of those 18 pairs are also `prevalence`, which is the honest reading of
    the rubric suites' ceiling. On `codemix / kenari` the two API judges pass 31
    and 30 of 32 cases, so `pe = 0.94` and their `kappa = 0.652` understates an
    agreement of `0.969`; on `cultural / ollama` and `register / ollama` every API
@@ -663,7 +670,7 @@ judge returned `1.0` on one draw and `0.0` on the next: it passes an adversarial
 case *intermittently*. A single-pass run would have published whichever draw it
 happened to take. `register`'s canary is caught on every draw by both judges, so
 the local judge's problem is not "cannot read a canary" but "reads two of three
-unreliably". §8.1's inter-judge rows are the same judge on the same suites, and
+unreliably". §8 item 1's inter-judge rows are the same judge on the same suites, and
 this is the mechanism behind them.
 
 The flag is what makes it visible in a table: `canary-fail` fires on the
@@ -688,7 +695,7 @@ conflation §3 warns about, and the reason the field was added rather than the
 column reinterpreted.
 
 The `draws` column is also the per-draw cost of `--repeats`, which is the input
-to §8.3's argument for keeping it a study parameter rather than a default. Making
+to §8 item 3's argument for keeping it a study parameter rather than a default. Making
 the cost visible is not a reason to reverse that decision.
 
 ### The 0.5 threshold was a convention, and one row turns on it
@@ -700,14 +707,18 @@ the sweep changes sign — a kappa positive at one threshold and negative at ano
 is a qualitative change in what the row claims, not a tuned tolerance. `0.0`
 counts as neither sign.
 
-In the published 36-row table exactly one row carries it, and it is worth naming:
+In the published 36-row table three rows carry it, all of them the local judge:
 
-| suite | subject | pair | k03 | k05 | k07 |
-|---|---|---|---:|---:|---:|
-| codemix | `kenari/qwen3-8-flash` | `kenari/deepseek-v4-1-flash` vs `ollama/qwen2.5:1.5b` | −0.032 | −0.049 | 0.054 |
+|suite|judge|k03|k05|k07|
+|---|---|---:|---:|---:|
+|`cultural`|`ollama/qwen2.5:1.5b`|0.003|−0.053|0.000|
+|`register`|`ollama/qwen2.5:1.5b`|−0.045|0.055|0.071|
+|`codemix`|`ollama/qwen2.5:1.5b`|0.116|−0.005|0.000|
 
-The two API judges agreeing on the same suite sit at `0.652` (table §8.1) — so
-this row's sign is not a property of the suite, and not of either judge alone, but
+Neither API judge carries a `threshold-sensitive` row. The pre-label artifact's
+`codemix` pair row (`kenari/deepseek-v4-1-flash` vs `ollama/qwen2.5:1.5b`,
+`−0.032 / −0.049 / 0.054`) is the same phenomenon on the inter-judge axis — the
+sign of the row is not a property of the suite, and not of either judge alone, but
 of where the pass/fail line falls relative to two judges' shared disagreement.
 Publishing `−0.049` alone would have implied the pair is worse than chance; the
 same observations at `0.7` say the opposite.
@@ -790,7 +801,7 @@ The resulting rows, from the regenerated table:
 
 **What this replaced, and what it cost.** The old rubric rows answered "do two
 judges agree with each other". These answer "does a judge agree with one rater",
-which is the question §8.1 said was the only way to close the gap. The mean kappa
+which is the question §8 item 1 said was the only way to close the gap. The mean kappa
 is `0.235` across the 12 API-judge rows and `0.054` across the 6 local-judge rows —
 lower than the inter-judge `0.531` the two API judges posted against each other,
 which is the expected direction: agreement between two judges drawn from the same
@@ -854,7 +865,7 @@ Both API judges picked the known-better response on every pair and never changed
 their answer when the responses were swapped. That is a `0.0` flip rate, and it is
 a **valid result, not a null one**: it says the pairwise form of position bias does
 not fire on this judge, this suite and this pair construction, which is the
-question §8.2 left open. One `deepseek` pair (`fact-007`) is excluded because its
+question §8 item 2 left open. One `deepseek` pair (`fact-007`) is excluded because its
 two forward draws split `A`/`B` and no majority exists — the same `fact-007` that
 §10 shows carrying a `0.5` first draw, so the exclusion is the boundary case
 already documented rather than a new anomaly.
@@ -939,7 +950,7 @@ attractive enough to be re-proposed:
   `tydiqa-025`'s flip is only "defensible" because `jal` happened to also appear,
   which is luck rather than morphology.
 
-**§8.4 therefore stays open, minus one row.** The paraphrase gap is real: on the
+**§8 item 4 therefore stays open, minus one row.** The paraphrase gap is real: on the
 worst cell, 2 of the 6 remaining disagreements are the matcher rejecting a correct
 answer (`Genin` for *"ninja kelas rendah…"*, `kecepatan berlari supersonik` for
 *"berjalan pada kecepatan supersonik"*). Closing it needs a semantic matcher or a

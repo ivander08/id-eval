@@ -121,7 +121,7 @@ rows that were never really about self-preference.
 ## What we still get wrong
 
 - **`prevalence` fires on 11 of 36 rows.** Growing the suites fixed `low-n`; it
-  cannot fix a skewed ground truth. `design-notes.md` §8.5 has the detail.
+  cannot fix a skewed ground truth. `design-notes.md` §8 item 5 has the detail.
 - **The rubric labels are reviewed, but by a second model, not a human.** The three
   rubric suites now carry ground truth — 192 labels, one per (suite, case, subject),
   in `annotations/rubric_labels.jsonl` — so their 18 rows are judge-vs-truth instead
